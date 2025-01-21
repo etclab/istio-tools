@@ -125,13 +125,27 @@ def run_command(command):
     process = subprocess.Popen(shlex.split(command))
     process.wait()
 
+def delete_all_files_in_directory(temp_dir_path):
+    # Check if the directory exists
+    if os.path.exists(temp_dir_path) and os.path.isdir(temp_dir_path):
+        # Iterate over all files in the directory
+        for file_name in os.listdir(temp_dir_path):
+            file_path = os.path.join(temp_dir_path, file_name)
+            # Check if it's a file and delete it
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                print(f"Deleted file: {file_path}")
+    else:
+        print(f"The directory '{temp_dir_path}' does not exist or is not a valid directory.")
 
 def sync_fortio(url, table, selector=None, promUrl="", csv=None, csv_output="", namespace=NAMESPACE):
     get_fortioclient_pod_cmd = "kubectl -n {namespace} get pods | grep fortioclient".format(namespace=namespace)
     fortioclient_pod_name = getoutput(get_fortioclient_pod_cmd).split(" ")[0]
     temp_dir_path = tempfile.gettempdir() + "/fortio_json_data"
-    get_fortio_json_cmd = "kubectl cp -c shell {namespace}/{fortioclient}:/var/lib/fortio {tempdir}"\
+    delete_all_files_in_directory(temp_dir_path)
+    get_fortio_json_cmd = "kubectl cp -c uncaptured {namespace}/{fortioclient}:/var/lib/fortio {tempdir}"\
         .format(namespace=namespace, fortioclient=fortioclient_pod_name, tempdir=temp_dir_path)
+    print(get_fortio_json_cmd)
     run_command(get_fortio_json_cmd)
 
     fd, datafile = tempfile.mkstemp(suffix=".json")
@@ -144,6 +158,8 @@ def sync_fortio(url, table, selector=None, promUrl="", csv=None, csv_output="", 
     for filename in os.listdir(temp_dir_path):
         print(filename)
         with open(os.path.join(temp_dir_path, filename), 'r') as f:
+            print("Reading ", filename)
+
             try:
                 data_dict = json.load(f, strict=False)
                 one_char = f.read(1)

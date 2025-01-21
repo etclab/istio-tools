@@ -364,7 +364,7 @@ class Fortio:
             # and running on separate sets of vCPU cores? nproc yields the same concurrency as goprocs
             # use with the Fortio version.
             # client_cpus = int(run_command_sync(
-            #     "kubectl exec -n \"{ns}\" svc/fortioclient -c shell nproc".format(ns=NAMESPACE)))
+            #     "kubectl exec -n \"{ns}\" svc/fortioclient -c uncaptured nproc".format(ns=NAMESPACE)))
             # print("Client pod has {client_cpus} cpus".format(client_cpus=client_cpus))
 
             # See the comment above, we restrict execution to a single nighthawk worker for
@@ -534,7 +534,7 @@ def run_perf_test(args):
         print("Deleting previous fortio data, del_perf_record is set to {delete}".format(delete=fortio.del_perf_record))
         get_fortioclient_pod_cmd = "kubectl -n {namespace} get pods | grep fortioclient".format(namespace=NAMESPACE)
         fortioclient_pod_name = getoutput(get_fortioclient_pod_cmd).split(" ")[0]
-        rm_fortio_json_cmd = "kubectl exec -it -n {namespace} {fortioclient} -c shell -- bash -c 'rm /var/lib/fortio/*.json'".format(
+        rm_fortio_json_cmd = "kubectl exec -it -n {namespace} {fortioclient} -c uncaptured -- sh -c 'rm -rf /var/lib/fortio/*'".format(
             namespace=NAMESPACE, fortioclient=fortioclient_pod_name)
         del_temp_dir = os.system("rm -rf /tmp/fortio_json_data/*.json /tmp/*.json /tmp/*.csv")
         print("cmd: %s" % rm_fortio_json_cmd)
@@ -719,7 +719,7 @@ def get_parser():
     parser.add_argument(
         "--del_perf_record",
         help="delete previous performance results",
-        default=False)
+        default=True)
 
     define_bool(parser, "no_istio", "run no_istio for all", False)
     define_bool(parser, "serversidecar",

@@ -35,7 +35,7 @@
     This will get stuck here -
     ```
     ...
-    + kubectl rollout status deployment fortioclient -n twopods --timeout=5m
+    + kubectl rollout status deployment fortioclient -n $NAMESPACE --timeout=5m
     Waiting for deployment "fortioclient" rollout to finish: 0 of 1 updated replicas are available...
     ```
     
@@ -44,7 +44,7 @@
     - First stop the pods in twopods
         ```
         # Assuming you are in perf/benchmark directory
-        kubectl -n twopods delete -f tmp/twopods.yaml
+        kubectl -n $NAMESPACE delete -f tmp/twopods.yaml
         ```
     - Edit the twopods.yaml to (1) remove the `podAffinity` rule, (2) broaden the `securityContext` to give full access (to prevent a write failure) and, (3) use a fortio with unix tools 
         
@@ -57,18 +57,18 @@
                 runAsGroup: 0
                 privileged: true 
             ```
-        3. Modify the image value to use a modified fortio image that has basic unix tools
+        3. Modify the image value to use a modified fortio image that has basic unix tools. Make sure not to update the image for `shell` container.
             - Set the `image` from `fortio/fortio:latest_release` to `npankaj365/fortio-busybox:latest` 
     - Rerun the pods creation step
         ```
         # Assuming you are in the perf/benchmark directory
-        kubectl -n twopods apply -f tmp/twopods.yaml
+        kubectl -n $NAMESPACE apply -f tmp/twopods.yaml
         ```
 
     - Verify the two fortio pods are running successfully. 
         You should the two pods to be in `running` status. 
         ```
-        kubectl -n twopods get pods 
+        kubectl -n $NAMESPACE get pods 
         ```
 
 5. Prepare Python Environment
@@ -78,29 +78,24 @@
     pipenv install
     ```
 
-    * Test Command to see if it works
+    * Testing the runner.py to see if it works
         ```
         python runner/runner.py --conn 2 --qps 100 --duration 120 --protocol_mode http --size 1024 --telemetry_mode v2-stats --load_gen_type fortio
         ```
 
     * Manual Fortio Run to verify file creation
         ```
-        kubectl -n twopods exec deployment/fortioclient -c uncaptured -- fortio load -data-dir=/var/lib/fortio -jitter=False -uniform=False -nocatchup=False -keepalive=True -c 2 -qps 100 -t 120s -a -r 0.000001 -httpbufferkb=128 -labels 37ecafcd_qps_100_c_2_1024_v2-stats_both http://fortioserver:8080/echo
-        ```
-
-        ```
-        kubectl -n twopods exec -it deployment/fortioclient -c uncaptured -- fortio load -data-dir=/var/lib/fortio -json=result.json -a -labels test_base http://fortioserver:8080/echo
+        kubectl -n $NAMESPACE exec -it deployment/fortioclient -c uncaptured -- fortio load -data-dir=/var/lib/fortio -json=result.json -a -labels test_base http://fortioserver:8080/echo
 
         ```
 
     * Watching Results Folder
         ```
-        kubectl -n twopods exec -it deployment/fortioclient -c uncaptured -- watch -n 1 "ls -laR /var/lib/fortio"
+        kubectl -n $NAMESPACE exec -it deployment/fortioclient -c uncaptured -- watch -n 1 "ls -laR /var/lib/fortio"
         ```
     * Basic Fortio tests run to see if it outputs into `var/lib/fortio` as required
         ```
-        kubectl -n twopods exec -it deployment/fortioclient -c uncaptured -- fortio load -data-dir=/var/lib/fortio -a -labels test_base http://fortioserver:8080/echo
-
+        kubectl -n $NAMESPACE exec -it deployment/fortioclient -c uncaptured -- fortio load -data-dir=/var/lib/fortio -a -labels test_base http://fortioserver:8080/echo
         ```
 
 6. Run the tests
@@ -114,7 +109,7 @@
     - Set `FORTIO_CLIENT_URL` and `PROMETHEUS_URL`
         * Find out which port the Reporting Service listens to
         ```
-        kubectl -n twopods logs -l app=fortioclient -c captured
+        kubectl -n $NAMESPACE logs -l app=fortioclient -c captured
         ```
 
     * Use that port to setup this port forwarding
@@ -158,14 +153,28 @@
 
     For full details go through [Graph Plotter Readme.md](./perf/benchmark/graph_plotter/README.md)
 
-    For instance, for the fortio run that was run with the following command:  
+    For instance, if the fortio runner was run with the following command:  
     ```
     python runner/runner.py --config_file ./configs/istio/telemetryv2_stats/latency.yaml
     ```
-    The plotter command would be:
+    The "Run `fortio.py`" step would emit a location for the csv output. Assuming the location is `/tmp/tmpn9snovhd.csv`, the plotter command would be:
 
     ```
-    python3 ./graph_plotter/graph_plotter.py --graph_type=latency-p50 --x_axis=conn --telemetry_modes=istio_with_stats_both --query_list=2,4,8,16,32,64 --query_str=ActualQPS==1000 --csv_filepath=./tmpn9snovhd.csv --graph_title=./plotter_output.png
+    python3 ./graph_plotter/graph_plotter.py --graph_type=latency-p50 --x_axis=conn --telemetry_modes=istio_with_stats_both --query_list=2,4,8,16,32,64 --query_str=ActualQPS==1000 --csv_filepath=/tmp/tmpn9snovhd.csv --graph_title=./plotter_output.png
     ```
 
-    
+    Here the number of connections is plotted in the X-axis against Latency while looking at values with only 1000 QPS.
+
+** Once the results are plotted, if the data generated is not relevant for further tests, remove the json outputs manually.
+
+### Miscellaneous Commands
+  - Forceful removal of all json outputs
+  ```
+  kubectl exec -it -n $NAMESPACE fortioclient-7684864568-9qdfw -c uncaptured -- sh -c 'rm /var/lib/fortio/*.json'
+  ```
+  - List all json
+  ```
+  kubectl exec -it -n $NAMESPACE deployment/fortioclient -c uncaptured -- sh -c 'ls -la /var/lib/fortio/*.json'
+
+  kubectl exec -it -n $NAMESPACE deployment/fortioclient -c uncaptured -- sh -c 'ls -la /var/lib/fortio/'
+  ```
