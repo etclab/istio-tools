@@ -7,20 +7,60 @@
     ```
 2. Create a Kubernetes Cluster
 
-    See [resource requirement](../istio-install#resource-requirment) to make sure the cluster has enough resources
+    See [resource requirement](./perf/istio-install#resource-requirment) to make sure the cluster has enough resources
 
 3. Istio Setup - [Link](https://github.com/istio/tools/tree/release-1.24/perf/istio-install#istio-setup)
     
     - Remove the configuration of IBM and GKE from `base/templates/prometheus-install.yaml`
-    - Set `DOMAIN` as `export DOMAIN=local`
-    - Set `VERSION` as `export VERSION=1.24.2` or `export TAG=latest`
-    - `./setup_istio.sh`
-        * **Potential Issue** - 
-            ```
-            + kubectl rollout status --watch --timeout=60s statefulset/prometheus-prometheus -n istio-prometheus
-            Error from server (NotFound): statefulsets.apps "prometheus-prometheus" not found
-            ```
-            No action required. It'll pass in a few retries. 
+        
+        Replace the entire storageclass block (as shown below):
+        ```
+        {{- if .Values.storageclass.deploy }}
+        # GKE cluster storage
+        apiVersion: storage.k8s.io/v1
+        kind: StorageClass
+        metadata:
+        name: ssd
+        parameters:
+        type: pd-ssd
+        provisioner: kubernetes.io/gce-pd
+        reclaimPolicy: Delete
+        volumeBindingMode: Immediate
+        {{- end}}
+        ```
+
+        with this new block for storage
+        ```
+        apiVersion: storage.k8s.io/v1
+        kind: StorageClass
+        metadata:
+        name: ssd
+        provisioner: k8s.io/minikube-hostpath  # Change to minikube's provisioner
+        reclaimPolicy: Delete
+        volumeBindingMode: Immediate
+        ```
+
+
+    - Set `DNS_DOMAIN` as `export DNS_DOMAIN=local`
+    - Set `VERSION` as `export VERSION=1.24.0` for Istio baseline or use `export TAG=latest` to use the latest version of Istio
+    - Run `cd perf/istio-install && ./setup_istio.sh`
+        * **Potential Issues** - 
+            
+            1. Ingress gateway not found 
+                ```
+                ✘ Ingress gateways encountered an error: failed to wait for resource: resources not ready after 5m0s: deployments.apps "istio-ingressgateway" not found
+                Error: failed to install manifests: failed to wait for resource: resources not ready after 5m0s: deployments.apps "istio-ingressgateway" not found
+                ```
+
+                Solution - Just rerun `./setup_istio.sh`
+
+            2. Prometheus not found
+                ```
+                + kubectl rollout status --watch --timeout=60s statefulset/prometheus-prometheus -n istio-prometheus
+                Error from server (NotFound): statefulsets.apps "prometheus-prometheus" not found
+                ```
+                
+                Solution- No action required. It'll pass in a few retries. 
     
 4. Deploy the workloads to measure peformance against. The test environment is two Fortio pods (one client, one server). 
     ```
@@ -29,6 +69,7 @@
     export ISTIO_INJECT=true
     export LOAD_GEN_TYPE=fortio
     export DNS_DOMAIN=local
+    cd ../benchmark
     ./setup_test.sh
     ```
 
@@ -73,7 +114,7 @@
 
 5. Prepare Python Environment
     ```
-    cd perf/benchmark
+    # Assuming pwd - .../perf/benchmark
     pipenv shell
     pipenv install
     ```
@@ -104,6 +145,7 @@
     ```
     python runner/runner.py --config_file ./configs/istio/telemetryv2_stats/latency.yaml
     ```
+
 7. Gather Result Metrics
 
     - Set `FORTIO_CLIENT_URL` and `PROMETHEUS_URL`
@@ -145,6 +187,10 @@
 
     * Run `fortio.py`
         ``` 
+        # For latency benchmarks
+        python ./runner/fortio.py $FORTIO_CLIENT_URL --prometheus=$PROMETHEUS_URL --csv StartTime,ActualDuration,Labels,NumThreads,ActualQPS,p50,p90,p99,p999
+
+        # For performance benchmarks
         python ./runner/fortio.py $FORTIO_CLIENT_URL --prometheus=$PROMETHEUS_URL --csv StartTime,ActualDuration,Labels,NumThreads,ActualQPS,p50,p90,p99,p999,cpu_mili_avg_istio_proxy_fortioclient,cpu_mili_avg_istio_proxy_fortioserver,cpu_mili_avg_istio_proxy_istio-ingressgateway,mem_Mi_avg_istio_proxy_fortioclient,mem_Mi_avg_istio_proxy_fortioserver,mem_Mi_avg_istio_proxy_istio-ingressgateway
 
         ```
@@ -170,7 +216,7 @@
 ### Miscellaneous Commands
   - Forceful removal of all json outputs
   ```
-  kubectl exec -it -n $NAMESPACE fortioclient-7684864568-9qdfw -c uncaptured -- sh -c 'rm /var/lib/fortio/*.json'
+  kubectl exec -it -n $NAMESPACE deployment/fortioclient -c uncaptured -- sh -c 'rm /var/lib/fortio/*.json'
   ```
   - List all json
   ```
