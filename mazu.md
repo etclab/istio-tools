@@ -213,6 +213,25 @@
 
 ** Once the results are plotted, if the data generated is not relevant for further tests, remove the json outputs manually.
 
+### Mazu Experiments
+
+For benchmarking Mazu, the Istio baseline benchmarks are run using the `yaml` configs in the `mazu_experiments` folder. 
+
+```bash
+# Running the experiments (expected completion time - 6 hrs)
+python runner/runner.py --config_file ./configs/istio/mazu_experiments/istio_mtls.yaml && python runner/runner.py --config_file ./configs/istio/mazu_experiments/no_istio_mtls.yaml && bash configs/istio/mazu_experiments/plaintext_prerun.sh && python runner/runner.py --config_file ./configs/istio/mazu_experiments/istio_plaintext.yaml 
+
+
+# Plotting the graph
+
+# For varying concurrent connections, P-90 Latency
+python3 ./graph_plotter/graph_plotter.py --graph_type=latency-p90 --x_axis=conn --telemetry_modes=istio_mtls_mtls_both,no_istio_mtls_mtls_no_istio,istio_without_mtls_plaintext_both --query_list=2,4,8,16,32,64 --query_str=ActualQPS==1000 --csv_filepath=/tmp/tmp9eie30v8.csv --graph_title=./istio_three_versions_wo_jitter_p90.png
+
+# For varying QPS, P-50 Latency
+python3 ./graph_plotter/graph_plotter.py --graph_type=latency-p50 --x_axis=qps --telemetry_modes=istio_mtls_mtls_both,no_istio_mtls_mtls_no_istio,istio_without_mtls_plaintext_both --query_list=600,800,1000,1200,1400 --query_str=NumThreads==16 --csv_filepath=/tmp/tmp9eie30v8.csv --graph_title=./istio_three_versions_latecy-vs-qps_wo_jitter_p50.png
+```
+
+
 ### Miscellaneous Commands
   - Forceful removal of all json outputs
   ```

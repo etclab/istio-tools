@@ -1,0 +1,29 @@
+# Data: latency
+# Config: No Istio, only mtls
+telemetry_mode: "no_istio_mtls"
+conn:
+    - 2
+    - 4
+    - 8
+    - 16
+    - 32
+    - 64
+qps:
+    - 600
+    - 800
+    - 1000
+    - 1200
+    - 1400
+duration: 240
+size: 1024
+perf_record: false
+
+run_no_istio: true
+run_bothsidecar: false
+run_serversidecar: false
+run_clientsidecar: false
+
+extra_labels: "mtls"
+# jitter: true
+uniform: true
+nocatchup: true
