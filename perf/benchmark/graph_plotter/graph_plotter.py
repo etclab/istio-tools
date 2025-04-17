@@ -40,7 +40,8 @@ def plotter(args):
     plt.figure(figsize=(1138 / dpi, 871 / dpi), dpi=dpi)
     fig = plt.figure(figsize=(1138 / dpi, 871 / dpi), dpi=dpi)
     ax = fig.add_subplot(111)
-    ax.set_ylim(0, 1.0)
+    # default ylim doesn't show points
+    # ax.set_ylim(0, 1.0)
     for key, val in telemetry_modes_y_data.items():
         plot_key = key
         match key:
