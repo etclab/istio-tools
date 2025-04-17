@@ -1,9 +1,11 @@
 # --- 
 
+DNS_DOMAIN=pc774.emulab.net VERSION=1.24.0 ./setup_istio.sh
+
 export NAMESPACE=twopods-istio
 export INTERCEPTION_MODE=REDIRECT
 export ISTIO_INJECT=true
-export LOAD_GEN_TYPE=nighthawk
+export LOAD_GEN_TYPE=fortio
 export DNS_DOMAIN=pc759.emulab.net
 
 ./get_proxy_perf.sh -p fortioclient-6988cbf5f9-24cxh -n twopods-istio -d 20 -f 99

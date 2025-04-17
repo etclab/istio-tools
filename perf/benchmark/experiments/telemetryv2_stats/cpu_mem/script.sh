@@ -1,7 +1,7 @@
 # run the benchmarks
 python runner/runner.py --config_file ./configs/istio/telemetryv2_stats/cpu_mem.yaml
 
-python runner/runner.py --config_file ./configs/istio/telemetryv2_stats/cpu_mem_0.yaml
+python runner/runner.py --config_file ./configs/istio/telemetryv2_stats/cpu_mem0.yaml
 
 
 # get the results
