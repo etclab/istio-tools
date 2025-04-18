@@ -519,6 +519,9 @@ spec:
         - "8081"
         - -tcp-port
         - "8078"
+        volumeMounts:
+        - name: shared-data
+          mountPath: /var/lib/fortio
 {{- end }}
 {{- else }}
 {{- if eq $.Values.loadGenType "nighthawk" }}
