@@ -58,7 +58,7 @@ spec:
       - istio-system
       - istio-prometheus
   endpoints:
-    - port: https-metric
+    - port: https-metrics
       scheme: https
       interval: 15s
       honorLabels: true
