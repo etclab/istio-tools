@@ -116,14 +116,12 @@ class Prom:
     def fetch_istio_proxy_cpu_usage_by_pod_name(self):
         cpu_query = 'sum(rate(container_cpu_usage_seconds_total{job="kubernetes-cadvisor",container="istio-proxy"}[1m])) by (pod)'
         data = self.fetch_by_query(cpu_query)
-        print(f"********************* fetch_by_query cpu", data)
         avg_cpu_dict = get_average_within_query_time_range(data, "cpu")
         return avg_cpu_dict
 
     def fetch_istio_proxy_memory_usage_by_pod_name(self):
         mem_query = 'container_memory_usage_bytes{job = "kubernetes-cadvisor", container="istio-proxy"}'
         data = self.fetch_by_query(mem_query)
-        print(f"********************* fetch_by_query memory", data)
         avg_mem_dict = get_average_within_query_time_range(data, "mem")
         return avg_mem_dict
 
@@ -131,13 +129,11 @@ class Prom:
         out = {}
 
         avg_cpu_dict = self.fetch_istio_proxy_cpu_usage_by_pod_name()
-        print(f"********************* avg_cpu_dict", avg_cpu_dict)
         out["cpu_mili_avg_istio_proxy_fortioclient"] = avg_cpu_dict["fortioclient"]
         out["cpu_mili_avg_istio_proxy_fortioserver"] = avg_cpu_dict["fortioserver"]
         out["cpu_mili_avg_istio_proxy_istio-ingressgateway"] = avg_cpu_dict["istio-ingressgateway"]
 
         avg_mem_dict = self.fetch_istio_proxy_memory_usage_by_pod_name()
-        print(f"********************* avg_mem_dict", avg_mem_dict)
         out["mem_Mi_avg_istio_proxy_fortioclient"] = avg_mem_dict["fortioclient"]
         out["mem_Mi_avg_istio_proxy_fortioserver"] = avg_mem_dict["fortioserver"]
         out["mem_Mi_avg_istio_proxy_istio-ingressgateway"] = avg_mem_dict["istio-ingressgateway"]
