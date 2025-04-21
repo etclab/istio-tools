@@ -11,8 +11,8 @@ spec:
     - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
       honorLabels: true
       interval: 15s
-      port: http-metrics
-      scheme: http
+      port: https-metrics
+      scheme: https
       tlsConfig:
         insecureSkipVerify: true
     - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -29,8 +29,8 @@ spec:
           sourceLabels:
             - __name__
       path: /metrics/cadvisor
-      port: http-metrics
-      scheme: http
+      port: https-metrics
+      scheme: https
       tlsConfig:
         insecureSkipVerify: true
   jobLabel: k8s-app
@@ -58,8 +58,8 @@ spec:
       - istio-system
       - istio-prometheus
   endpoints:
-    - port: http-metric
-      scheme: http
+    - port: https-metric
+      scheme: https
       interval: 15s
       honorLabels: true
       bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token

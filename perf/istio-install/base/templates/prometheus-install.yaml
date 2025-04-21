@@ -30,6 +30,7 @@ spec:
       prometheus: prometheus
   image: quay.io/prometheus/prometheus:v2.32.1
   version: v2.32.1
+  logLevel: debug
   retention: 72h
   scrapeInterval: 15s
   serviceAccountName: prometheus
@@ -74,6 +75,7 @@ rules:
       - endpoints
       - pods
       - nodes/proxy
+      - nodes/metrics
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources:
