@@ -1,6 +1,5 @@
-apiVersion: install.istio.io/v1alpha1
-kind: IstioOperator
-spec:
+- Meshconfig to enable envoy access logs with TLS handshake details
+```yaml
   meshConfig:
     accessLogFile: /dev/stdout
     accessLogFormat: |
@@ -9,31 +8,4 @@ spec:
         downstream_tls_session_id="%DOWNSTREAM_TLS_SESSION_ID%" downstream_tls_cipher="%DOWNSTREAM_TLS_CIPHER%" downstream_peer_uri_san="%DOWNSTREAM_PEER_URI_SAN%" downstream_tls_version="%DOWNSTREAM_TLS_VERSION%" downstream_peer_fingerprint_256="%DOWNSTREAM_PEER_FINGERPRINT_256%" downstream_peer_serial="%DOWNSTREAM_PEER_SERIAL%"
         
         upstream_peer_subject="%UPSTREAM_PEER_SUBJECT%" upstream_peer_issuer="%UPSTREAM_PEER_ISSUER%" upstream_tls_session_id="%UPSTREAM_TLS_SESSION_ID%" upstream_tls_cipher="%UPSTREAM_TLS_CIPHER%" upstream_tls_version="%UPSTREAM_TLS_VERSION%" upstream_peer_cert="%UPSTREAM_PEER_CERT%" upstream_peer_uri_san="%UPSTREAM_PEER_URI_SAN%"
-      
-    defaultConfig:
-      proxyMetadata:
-        ISTIO_META_DNS_CAPTURE: "true"
-  components:
-    ingressGateways:
-      - name: istio-ingressgateway
-        enabled: false
-    pilot:
-      enabled: true
-      k8s:
-        resources:
-          limits:
-            cpu: 4800m
-            memory: 6G
-          requests:
-            cpu: 1000m
-            memory: 2G
-  values:
-    global:
-      proxy:
-        enableCoreDump: true
-        resources:
-          requests:
-            cpu: 250m
-            memory: 256Mi
-
-
+```

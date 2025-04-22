@@ -5,7 +5,8 @@ metadata:
   namespace: {{ $.Values.namespace }}
 spec:
   mtls:
-    mode: PERMISSIVE
+    # mode: STRICT 
+    mode: PERMISSIVE # works for both mTLS and non-mTLS
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule

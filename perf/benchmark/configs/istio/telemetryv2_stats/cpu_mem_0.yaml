@@ -3,7 +3,7 @@
 # VM mode: nullvm
 telemetry_mode: "v2-stats-nullvm"
 conn:
-    - 16
+    - 2
 qps:
     - -1
 duration: 120
