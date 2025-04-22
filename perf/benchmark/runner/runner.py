@@ -267,12 +267,12 @@ class Fortio:
 
         return headers_cmd
 
-    def generate_fortio_cmd(self, headers_cmd, conn, qps, duration, grpc, cacert_arg, jitter, uniform, nocatchup, keepalive, connection_reuse_arg, labels):
+    def generate_fortio_cmd(self, headers_cmd, conn, qps, duration, grpc, cacert_arg, jitter, uniform, nocatchup, keepalive, connection_reuse_arg, labels, size):
         if duration is None:
             duration = self.duration
         fortio_cmd = (
             "fortio load {headers} -jitter={jitter} -uniform={uniform} -nocatchup={nocatchup} -keepalive={keepalive} {connection_reuse_arg} -c {conn} -qps {qps} -t {duration}s -a -r {r} {cacert_arg} {grpc} "
-            "-httpbufferkb=128 -labels {labels}").format(
+            "-httpbufferkb={size} -labels {labels}").format(
             headers=headers_cmd,
             conn=conn,
             qps=qps,
@@ -285,7 +285,8 @@ class Fortio:
             cacert_arg=cacert_arg,
             labels=labels,
             keepalive=keepalive,
-            connection_reuse_arg=connection_reuse_arg)
+            connection_reuse_arg=connection_reuse_arg,
+            size=size)
 
         return fortio_cmd
 
@@ -357,7 +358,8 @@ class Fortio:
         load_gen_cmd = ""
         if self.load_gen_type == "fortio":
             load_gen_cmd = self.generate_fortio_cmd(headers_cmd, conn, qps, duration, grpc, cacert_arg, self.jitter,
-                                                    self.uniform, self.nocatchup, self.keepalive, connection_reuse_arg, labels)
+                                                    self.uniform, self.nocatchup, self.keepalive, connection_reuse_arg, 
+                                                    labels, size)
         elif self.load_gen_type == "nighthawk":
             # TODO(oschaaf): Figure out how to best determine the right concurrency for Nighthawk.
             # Results seem to get very noisy as the number of workers increases, are the clients
