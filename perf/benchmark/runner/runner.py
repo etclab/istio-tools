@@ -195,7 +195,11 @@ class Fortio:
 
     # no sidecar mode
     def no_istio(self, load_gen_cmd, sidecar_mode):
-        return load_gen_cmd + "_" + sidecar_mode + " " + self.compute_uri(self.server.ip, "direct_port")
+        print(f"------- in function no_istio -------")
+        print(f"load_gen_cmd: {load_gen_cmd}, sidecar_mode: {sidecar_mode}")
+        computed_uri = self.compute_uri(self.server.ip, "direct_port")
+        print(f"computed_uri: {computed_uri}")
+        return load_gen_cmd + "_" + sidecar_mode + " " + computed_uri
 
     def serversidecar(self, load_gen_cmd, sidecar_mode):
         return load_gen_cmd + "_" + sidecar_mode + " " + self.compute_uri(self.server.ip, "port")
@@ -204,7 +208,11 @@ class Fortio:
         return load_gen_cmd + "_" + sidecar_mode + " " + self.compute_uri(self.server.labels["app"], "direct_port")
 
     def bothsidecar(self, load_gen_cmd, sidecar_mode):
-        return load_gen_cmd + "_" + sidecar_mode + " " + self.compute_uri(self.server.labels["app"], "port")
+        print(f"------- in function bothsidecar -------")
+        print(f"load_gen_cmd: {load_gen_cmd}, sidecar_mode: {sidecar_mode}")
+        computed_uri = self.compute_uri(self.server.labels["app"], "port")
+        print(f"computed_uri: {computed_uri}")
+        return load_gen_cmd + "_" + sidecar_mode + " " + computed_uri
 
     def ingress(self, load_gen_cmd):
         url = urlparse(self.run_ingress)
@@ -218,6 +226,8 @@ class Fortio:
     def execute_sidecar_mode(self, sidecar_mode, load_gen_type, load_gen_cmd, sidecar_mode_func, labels,
                              perf_label_suffix):
         print('-------------- Running in {sidecar_mode} mode --------------'.format(sidecar_mode=sidecar_mode))
+        print(f"load_gen_cmd: {load_gen_cmd}, load_gen_type: {load_gen_type}")
+        print(f"labels: {labels}, perf_label_suffix: {perf_label_suffix}")
         if load_gen_type == "fortio":
             p = multiprocessing.Process(target=kubectl_exec,
                                         args=[self.client.name, sidecar_mode_func(load_gen_cmd, sidecar_mode)])

@@ -1,0 +1,21 @@
+# Data: latency
+# Config: Talk with pods directly without istio
+telemetry_mode: "no_istio"
+conn:
+    - 2
+qps:
+    - -1
+
+duration: 120
+size: 1024
+perf_record: true
+
+run_no_istio: true
+run_bothsidecar: true
+run_serversidecar: false
+run_clientsidecar: false
+
+extra_labels: "mtls"
+
+uniform: true
+nocatchup: true
