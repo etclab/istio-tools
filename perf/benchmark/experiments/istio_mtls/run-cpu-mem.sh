@@ -5,7 +5,7 @@ pushd ../../ > /dev/null || { echo "Failed to change directory"; exit 1; }
 
 # Loop over durations
 for duration in 120 240 480; do
-    config_path="./experiments/no_istio/cpu_mem_${duration}s.yaml"
+    config_path="./experiments/istio_mtls/cpu_mem_${duration}s.yaml"
     
     if [[ -f $config_path ]]; then
         echo "▶ Running benchmark for duration=${duration}s"
