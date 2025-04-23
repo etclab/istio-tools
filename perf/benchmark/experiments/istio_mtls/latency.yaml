@@ -1,6 +1,6 @@
 # Data: latency
-# Config: Request between pods happens with a direct port bypassing sidecars
-telemetry_mode: "no_istio"
+# Config: Request goes through istio sidecar
+telemetry_mode: "istio_mtls"
 conn:
     - 2
     - 4

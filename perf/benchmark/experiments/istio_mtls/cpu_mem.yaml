@@ -1,8 +1,8 @@
 # Data: latency
-# Config: Talk with pods directly without istio
-telemetry_mode: "no_istio"
+# Config: Request goes through istio sidecar
+telemetry_mode: "istio_mtls"
 conn:
-    - 4
+    - 16
 qps:
     - 100
     - 250

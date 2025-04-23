@@ -14,7 +14,7 @@ for DURATION in "${DURATIONS[@]}"; do
   OUTPUT_FILE="latency_${DURATION}s.yaml"
 
   sed -e "s/^duration: .*/duration: ${DURATION}/" \
-      -e "s/^extra_labels: .*/extra_labels: \"${DURATION}s_istio_mtls\"/" \
+      -e "s/^extra_labels: .*/extra_labels: \"${DURATION}s\"/" \
       "$INPUT_FILE" > "$OUTPUT_FILE"
 
   echo "✅ Generated: $OUTPUT_FILE"
