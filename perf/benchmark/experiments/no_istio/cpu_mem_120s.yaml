@@ -23,7 +23,7 @@ run_bothsidecar: false
 run_serversidecar: false
 run_clientsidecar: false
 
-extra_labels: ""
+extra_labels: "120s"
 
 uniform: true
 nocatchup: true

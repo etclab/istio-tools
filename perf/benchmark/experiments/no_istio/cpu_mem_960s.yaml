@@ -13,7 +13,7 @@ qps:
     - 8000
     - 16000
 
-duration: 120
+duration: 960
 size: 1024
 perf_record: true
 del_perf_record: false
@@ -23,7 +23,7 @@ run_bothsidecar: false
 run_serversidecar: false
 run_clientsidecar: false
 
-extra_labels: ""
+extra_labels: "960s"
 
 uniform: true
 nocatchup: true
