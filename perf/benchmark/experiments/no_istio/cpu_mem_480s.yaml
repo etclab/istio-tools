@@ -2,7 +2,7 @@
 # Config: Talk with pods directly without istio
 telemetry_mode: "no_istio"
 conn:
-    - 4
+    - 16
 qps:
     - 100
     - 250
