@@ -51,7 +51,7 @@ def plotter(args):
                 plot_key = "istio_with_stats"
         plt.plot(args.query_list, val, marker='o', label=plot_key)
         for i, j in zip(args.query_list, val):
-            ax.annotate(str(j), xy=(i, j))
+            # ax.annotate(str(j), xy=(i, j))
             print("i=%x,j=%x,args.querylist=%x,val=%x,key=%x", i, j, args.query_list, val, key)
 
     plt.xlabel(get_x_label(args))
