@@ -1,0 +1,2266 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="918" onload="init(evt)" viewBox="0 0 1200 918" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="918.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="901" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="901" > </text>
+<g id="frames">
+<g >
+<title>ctx_sched_in (50,634,983 samples, 1.01%)</title><rect x="1134.8" y="517" width="11.9" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="1137.76" y="527.5" ></text>
+</g>
+<g >
+<title>rseq_ip_fixup (48,992,531 samples, 0.98%)</title><rect x="506.7" y="581" width="11.6" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="509.68" y="591.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ServerConnectionImpl::onMessageCompleteBase (54,035,710 samples, 1.08%)</title><rect x="656.0" y="485" width="12.8" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="659.04" y="495.5" ></text>
+</g>
+<g >
+<title>common_interrupt (15,677,555 samples, 0.31%)</title><rect x="594.5" y="485" width="3.7" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="597.47" y="495.5" ></text>
+</g>
+<g >
+<title>event_del_nolock_ (11,833,555 samples, 0.24%)</title><rect x="288.7" y="741" width="2.8" height="15.0" fill="rgb(226,97,23)" rx="2" ry="2" />
+<text  x="291.70" y="751.5" ></text>
+</g>
+<g >
+<title>Envoy::Server::AdminFilter::decodeHeaders (54,035,710 samples, 1.08%)</title><rect x="656.0" y="437" width="12.8" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="659.04" y="447.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Http::TlsCachingDateProviderImpl::onRefreshDate (74,933,489 samples, 1.50%)</title><rect x="678.8" y="629" width="17.7" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="681.77" y="639.5" ></text>
+</g>
+<g >
+<title>Envoy::DateFormatter::formatTimeAndOffsets (18,802,407 samples, 0.38%)</title><rect x="668.8" y="645" width="4.5" height="15.0" fill="rgb(243,178,42)" rx="2" ry="2" />
+<text  x="671.81" y="655.5" ></text>
+</g>
+<g >
+<title>ep_poll (428,957,810 samples, 8.59%)</title><rect x="518.3" y="597" width="101.4" height="15.0" fill="rgb(238,151,36)" rx="2" ry="2" />
+<text  x="521.26" y="607.5" >ep_poll</text>
+</g>
+<g >
+<title>__perf_event_task_sched_in (109,965,863 samples, 2.20%)</title><rect x="428.1" y="549" width="26.0" height="15.0" fill="rgb(231,121,29)" rx="2" ry="2" />
+<text  x="431.06" y="559.5" >_..</text>
+</g>
+<g >
+<title>ktime_get_ts64 (50,302,331 samples, 1.01%)</title><rect x="470.1" y="661" width="11.9" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="473.12" y="671.5" ></text>
+</g>
+<g >
+<title>__x64_sys_futex (267,143,878 samples, 5.35%)</title><rect x="10.0" y="661" width="63.2" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="13.00" y="671.5" >__x64_..</text>
+</g>
+<g >
+<title>Envoy::Network::ConnectionImpl::onReadReady (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="677" width="7.1" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="1167.38" y="687.5" ></text>
+</g>
+<g >
+<title>epoll_dispatch (24,067,192 samples, 0.48%)</title><rect x="73.2" y="773" width="5.6" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="76.15" y="783.5" ></text>
+</g>
+<g >
+<title>Envoy::Event::DispatcherImpl::runPostCallbacks (47,186,333 samples, 0.95%)</title><rect x="644.9" y="693" width="11.1" height="15.0" fill="rgb(253,224,53)" rx="2" ry="2" />
+<text  x="647.89" y="703.5" ></text>
+</g>
+<g >
+<title>event_process_active_single_queue (218,272,523 samples, 4.37%)</title><rect x="644.9" y="709" width="51.6" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="647.89" y="719.5" >event..</text>
+</g>
+<g >
+<title>absl::lts_20240722::CondVar::WaitCommon (1,327,626 samples, 0.03%)</title><rect x="704.6" y="757" width="0.3" height="15.0" fill="rgb(231,121,28)" rx="2" ry="2" />
+<text  x="707.61" y="767.5" ></text>
+</g>
+<g >
+<title>merge_sched_in (92,229,620 samples, 1.85%)</title><rect x="50.7" y="485" width="21.8" height="15.0" fill="rgb(233,132,31)" rx="2" ry="2" />
+<text  x="53.70" y="495.5" >m..</text>
+</g>
+<g >
+<title>epoll_wait (630,148,794 samples, 12.62%)</title><rect x="1003.8" y="741" width="148.9" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="1006.76" y="751.5" >epoll_wait</text>
+</g>
+<g >
+<title>intel_pmu_enable_all (7,325,196 samples, 0.15%)</title><rect x="452.3" y="517" width="1.8" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="455.33" y="527.5" ></text>
+</g>
+<g >
+<title>ip_finish_output (42,716,194 samples, 0.86%)</title><rect x="945.5" y="309" width="10.1" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="948.53" y="319.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Stats::ThreadLocalStoreImpl::mergeHistograms (47,186,333 samples, 0.95%)</title><rect x="644.9" y="677" width="11.1" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
+<text  x="647.89" y="687.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (267,143,878 samples, 5.35%)</title><rect x="10.0" y="837" width="63.2" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="13.00" y="847.5" >[libc...</text>
+</g>
+<g >
+<title>x64_sys_call (267,143,878 samples, 5.35%)</title><rect x="10.0" y="677" width="63.2" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="13.00" y="687.5" >x64_sy..</text>
+</g>
+<g >
+<title>__schedule (215,806,704 samples, 4.32%)</title><rect x="22.1" y="581" width="51.1" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="25.14" y="591.5" >__sch..</text>
+</g>
+<g >
+<title>__sock_sendmsg (42,716,194 samples, 0.86%)</title><rect x="945.5" y="501" width="10.1" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="948.53" y="511.5" ></text>
+</g>
+<g >
+<title>do_epoll_wait (528,529,557 samples, 10.59%)</title><rect x="1027.8" y="661" width="124.9" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="1030.79" y="671.5" >do_epoll_wait</text>
+</g>
+<g >
+<title>__netif_receive_skb (42,716,194 samples, 0.86%)</title><rect x="945.5" y="149" width="10.1" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="948.53" y="159.5" ></text>
+</g>
+<g >
+<title>__x64_sys_epoll_wait (50,576,361 samples, 1.01%)</title><rect x="1003.8" y="693" width="11.9" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="1006.76" y="703.5" ></text>
+</g>
+<g >
+<title>pthread_self (15,835,821 samples, 0.32%)</title><rect x="958.7" y="757" width="3.8" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="961.71" y="767.5" ></text>
+</g>
+<g >
+<title>pthread_mutex_lock (14,875,491 samples, 0.30%)</title><rect x="291.5" y="757" width="3.5" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="294.50" y="767.5" ></text>
+</g>
+<g >
+<title>psi_group_change (117,733,688 samples, 2.36%)</title><rect x="244.2" y="549" width="27.8" height="15.0" fill="rgb(226,101,24)" rx="2" ry="2" />
+<text  x="247.17" y="559.5" >p..</text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (1,327,626 samples, 0.03%)</title><rect x="704.6" y="693" width="0.3" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="707.61" y="703.5" ></text>
+</g>
+<g >
+<title>evthread_posix_lock (13,031,883 samples, 0.26%)</title><rect x="955.6" y="757" width="3.1" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="958.63" y="767.5" ></text>
+</g>
+<g >
+<title>exit_to_user_mode_loop (51,042,876 samples, 1.02%)</title><rect x="1015.7" y="661" width="12.1" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="1018.72" y="671.5" ></text>
+</g>
+<g >
+<title>schedule (215,806,704 samples, 4.32%)</title><rect x="22.1" y="597" width="51.1" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="25.14" y="607.5" >sched..</text>
+</g>
+<g >
+<title>schedule_hrtimeout_range (524,132,718 samples, 10.50%)</title><rect x="771.9" y="629" width="123.9" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="774.91" y="639.5" >schedule_hrtime..</text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ServerConnectionImpl::dispatch (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="629" width="7.1" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="1167.38" y="639.5" ></text>
+</g>
+<g >
+<title>__x64_sys_epoll_wait (528,529,557 samples, 10.59%)</title><rect x="1027.8" y="677" width="124.9" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="1030.79" y="687.5" >__x64_sys_epoll..</text>
+</g>
+<g >
+<title>__update_load_avg_se (51,638,464 samples, 1.03%)</title><rect x="803.6" y="501" width="12.2" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="806.59" y="511.5" ></text>
+</g>
+<g >
+<title>Envoy::Extensions::TransportSockets::Tls::currentASN1Time (47,186,333 samples, 0.95%)</title><rect x="644.9" y="565" width="11.1" height="15.0" fill="rgb(242,170,40)" rx="2" ry="2" />
+<text  x="647.89" y="575.5" ></text>
+</g>
+<g >
+<title>psi_task_switch (117,733,688 samples, 2.36%)</title><rect x="244.2" y="565" width="27.8" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="247.17" y="575.5" >p..</text>
+</g>
+<g >
+<title>reweight_entity (39,969,944 samples, 0.80%)</title><rect x="539.2" y="453" width="9.5" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="542.20" y="463.5" ></text>
+</g>
+<g >
+<title>dequeue_entity (123,367,464 samples, 2.47%)</title><rect x="786.6" y="533" width="29.2" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="789.63" y="543.5" >de..</text>
+</g>
+<g >
+<title>run_some_expired_timers (74,260,042 samples, 1.49%)</title><rect x="719.7" y="757" width="17.6" height="15.0" fill="rgb(225,93,22)" rx="2" ry="2" />
+<text  x="722.71" y="767.5" ></text>
+</g>
+<g >
+<title>exit_to_user_mode_prepare (51,042,876 samples, 1.02%)</title><rect x="1015.7" y="677" width="12.1" height="15.0" fill="rgb(228,108,25)" rx="2" ry="2" />
+<text  x="1018.72" y="687.5" ></text>
+</g>
+<g >
+<title>snprintf (47,186,333 samples, 0.95%)</title><rect x="644.9" y="517" width="11.1" height="15.0" fill="rgb(253,220,52)" rx="2" ry="2" />
+<text  x="647.89" y="527.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64 (21,195,677 samples, 0.42%)</title><rect x="749.6" y="725" width="5.1" height="15.0" fill="rgb(239,156,37)" rx="2" ry="2" />
+<text  x="752.64" y="735.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (668,890,712 samples, 13.40%)</title><rect x="754.7" y="725" width="158.1" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="757.66" y="735.5" >entry_SYSCALL_64_aft..</text>
+</g>
+<g >
+<title>Envoy::DateFormatter::fromTime (18,802,407 samples, 0.38%)</title><rect x="668.8" y="661" width="4.5" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="671.81" y="671.5" ></text>
+</g>
+<g >
+<title>nft_do_chain (15,677,555 samples, 0.31%)</title><rect x="594.5" y="245" width="3.7" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="597.47" y="255.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (835,248,450 samples, 16.73%)</title><rect x="81.5" y="709" width="197.4" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="84.49" y="719.5" >do_syscall_64</text>
+</g>
+<g >
+<title>Envoy::Stats::SymbolTable::lessThanLockHeld (54,035,710 samples, 1.08%)</title><rect x="656.0" y="309" width="12.8" height="15.0" fill="rgb(234,134,32)" rx="2" ry="2" />
+<text  x="659.04" y="319.5" ></text>
+</g>
+<g >
+<title>i40e_napi_poll (15,677,555 samples, 0.31%)</title><rect x="594.5" y="405" width="3.7" height="15.0" fill="rgb(234,135,32)" rx="2" ry="2" />
+<text  x="597.47" y="415.5" ></text>
+</g>
+<g >
+<title>schedule_hrtimeout_range_clock (453,519,235 samples, 9.09%)</title><rect x="1045.5" y="613" width="107.2" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="1048.52" y="623.5" >schedule_hrti..</text>
+</g>
+<g >
+<title>AbslInternalPerThreadSemWait_lts_20240722 (1,327,626 samples, 0.03%)</title><rect x="704.6" y="741" width="0.3" height="15.0" fill="rgb(253,223,53)" rx="2" ry="2" />
+<text  x="707.61" y="751.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::ConnectionManagerImpl::ActiveStream::decodeHeaders (54,035,710 samples, 1.08%)</title><rect x="656.0" y="469" width="12.8" height="15.0" fill="rgb(248,200,48)" rx="2" ry="2" />
+<text  x="659.04" y="479.5" ></text>
+</g>
+<g >
+<title>update_curr (96,389,479 samples, 1.93%)</title><rect x="1100.3" y="517" width="22.8" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="1103.32" y="527.5" >u..</text>
+</g>
+<g >
+<title>Envoy::Server::AdminFilter::onComplete (54,035,710 samples, 1.08%)</title><rect x="656.0" y="421" width="12.8" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="659.04" y="431.5" ></text>
+</g>
+<g >
+<title>conntrack_mt.isra.0 (15,677,555 samples, 0.31%)</title><rect x="594.5" y="197" width="3.7" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="597.47" y="207.5" ></text>
+</g>
+<g >
+<title>Envoy::DateFormatter::now (18,802,407 samples, 0.38%)</title><rect x="668.8" y="677" width="4.5" height="15.0" fill="rgb(209,20,5)" rx="2" ry="2" />
+<text  x="671.81" y="687.5" ></text>
+</g>
+<g >
+<title>ip_list_rcv (15,677,555 samples, 0.31%)</title><rect x="594.5" y="341" width="3.7" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="597.47" y="351.5" ></text>
+</g>
+<g >
+<title>Envoy::Network::FilterManagerImpl::onContinueReading (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="661" width="7.1" height="15.0" fill="rgb(206,8,2)" rx="2" ry="2" />
+<text  x="1167.38" y="671.5" ></text>
+</g>
+<g >
+<title>ip_local_deliver (42,716,194 samples, 0.86%)</title><rect x="945.5" y="101" width="10.1" height="15.0" fill="rgb(230,116,27)" rx="2" ry="2" />
+<text  x="948.53" y="111.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (938,520,320 samples, 18.80%)</title><rect x="73.2" y="821" width="221.8" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="76.15" y="831.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>dequeue_task (69,513,116 samples, 1.39%)</title><rect x="22.1" y="565" width="16.5" height="15.0" fill="rgb(244,183,43)" rx="2" ry="2" />
+<text  x="25.14" y="575.5" ></text>
+</g>
+<g >
+<title>event_process_active_single_queue (42,716,194 samples, 0.86%)</title><rect x="945.5" y="757" width="10.1" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="948.53" y="767.5" ></text>
+</g>
+<g >
+<title>native_write_msr (8,836,746 samples, 0.18%)</title><rect x="877.4" y="501" width="2.0" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="880.35" y="511.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Network::ConnectionImpl::ConnectionImpl (54,035,710 samples, 1.08%)</title><rect x="656.0" y="661" width="12.8" height="15.0" fill="rgb(241,167,40)" rx="2" ry="2" />
+<text  x="659.04" y="671.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Server::GuardDogImpl::start (938,520,320 samples, 18.80%)</title><rect x="73.2" y="789" width="221.8" height="15.0" fill="rgb(217,59,14)" rx="2" ry="2" />
+<text  x="76.15" y="799.5" >std::__1::__function::__func&lt;..</text>
+</g>
+<g >
+<title>Envoy::Network::ConnectionImpl::onFileEvent (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="693" width="7.1" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="1167.38" y="703.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (42,716,194 samples, 0.86%)</title><rect x="945.5" y="565" width="10.1" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="948.53" y="575.5" ></text>
+</g>
+<g >
+<title>std::__1::chrono::steady_clock::now (51,227,527 samples, 1.03%)</title><rect x="974.5" y="757" width="12.1" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="977.50" y="767.5" ></text>
+</g>
+<g >
+<title>__strftime_l (18,802,407 samples, 0.38%)</title><rect x="668.8" y="565" width="4.5" height="15.0" fill="rgb(253,220,52)" rx="2" ry="2" />
+<text  x="671.81" y="575.5" ></text>
+</g>
+<g >
+<title>schedule (1,327,626 samples, 0.03%)</title><rect x="704.6" y="581" width="0.3" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="707.61" y="591.5" ></text>
+</g>
+<g >
+<title>ip_sublist_rcv_finish (15,677,555 samples, 0.31%)</title><rect x="594.5" y="309" width="3.7" height="15.0" fill="rgb(241,168,40)" rx="2" ry="2" />
+<text  x="597.47" y="319.5" ></text>
+</g>
+<g >
+<title>x86_pmu_enable (6,528,776 samples, 0.13%)</title><rect x="592.9" y="485" width="1.6" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="595.93" y="495.5" ></text>
+</g>
+<g >
+<title>Envoy::Server::InstanceBase::run (917,447,442 samples, 18.38%)</title><rect x="487.7" y="741" width="216.9" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="490.73" y="751.5" >Envoy::Server::InstanceBase:..</text>
+</g>
+<g >
+<title>perf_event_sched_in (260,060,905 samples, 5.21%)</title><rect x="815.8" y="533" width="61.5" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="818.80" y="543.5" >perf_e..</text>
+</g>
+<g >
+<title>ASN1_TIME_set (47,186,333 samples, 0.95%)</title><rect x="644.9" y="549" width="11.1" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="647.89" y="559.5" ></text>
+</g>
+<g >
+<title>Envoy::Server::InstanceBase::updateServerStats (47,186,333 samples, 0.95%)</title><rect x="644.9" y="629" width="11.1" height="15.0" fill="rgb(235,142,34)" rx="2" ry="2" />
+<text  x="647.89" y="639.5" ></text>
+</g>
+<g >
+<title>x64_sys_call (1,327,626 samples, 0.03%)</title><rect x="704.6" y="661" width="0.3" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="707.61" y="671.5" ></text>
+</g>
+<g >
+<title>finish_task_switch.isra.0 (146,293,588 samples, 2.93%)</title><rect x="38.6" y="565" width="34.6" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="41.57" y="575.5" >fi..</text>
+</g>
+<g >
+<title>Envoy::Network::IoSocketHandleImpl::writev (42,716,194 samples, 0.86%)</title><rect x="945.5" y="629" width="10.1" height="15.0" fill="rgb(211,32,7)" rx="2" ry="2" />
+<text  x="948.53" y="639.5" ></text>
+</g>
+<g >
+<title>event_base_loop (917,447,442 samples, 18.38%)</title><rect x="487.7" y="725" width="216.9" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="490.73" y="735.5" >event_base_loop</text>
+</g>
+<g >
+<title>ip_finish_output2 (42,716,194 samples, 0.86%)</title><rect x="945.5" y="277" width="10.1" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="948.53" y="287.5" ></text>
+</g>
+<g >
+<title>Envoy::Stats::SymbolTable::fromSymbol (54,035,710 samples, 1.08%)</title><rect x="656.0" y="293" width="12.8" height="15.0" fill="rgb(235,140,33)" rx="2" ry="2" />
+<text  x="659.04" y="303.5" ></text>
+</g>
+<g >
+<title>do_softirq (42,716,194 samples, 0.86%)</title><rect x="945.5" y="245" width="10.1" height="15.0" fill="rgb(223,87,20)" rx="2" ry="2" />
+<text  x="948.53" y="255.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (917,447,442 samples, 18.38%)</title><rect x="487.7" y="805" width="216.9" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="490.73" y="815.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>absl::lts_20240722::Mutex::Lock (74,260,042 samples, 1.49%)</title><rect x="719.7" y="741" width="17.6" height="15.0" fill="rgb(239,158,37)" rx="2" ry="2" />
+<text  x="722.71" y="751.5" ></text>
+</g>
+<g >
+<title>x86_pmu_enable (9,157,630 samples, 0.18%)</title><rect x="877.3" y="533" width="2.1" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="880.28" y="543.5" ></text>
+</g>
+<g >
+<title>__schedule (735,957,388 samples, 14.74%)</title><rect x="105.0" y="581" width="173.9" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="107.96" y="591.5" >__schedule</text>
+</g>
+<g >
+<title>select_estimate_accuracy (67,964,873 samples, 1.36%)</title><rect x="454.1" y="629" width="16.0" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="457.06" y="639.5" ></text>
+</g>
+<g >
+<title>__x64_sys_epoll_wait (835,248,450 samples, 16.73%)</title><rect x="81.5" y="677" width="197.4" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="84.49" y="687.5" >__x64_sys_epoll_wait</text>
+</g>
+<g >
+<title>Envoy::Network::FilterManagerImpl::onContinueReading (54,035,710 samples, 1.08%)</title><rect x="656.0" y="613" width="12.8" height="15.0" fill="rgb(206,8,2)" rx="2" ry="2" />
+<text  x="659.04" y="623.5" ></text>
+</g>
+<g >
+<title>Envoy::ThreadLocal::InstanceImpl::setThreadLocal (49,295,291 samples, 0.99%)</title><rect x="1152.7" y="709" width="11.7" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="1155.73" y="719.5" ></text>
+</g>
+<g >
+<title>x86_pmu_enable (2,737,767 samples, 0.05%)</title><rect x="72.5" y="533" width="0.7" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="75.50" y="543.5" ></text>
+</g>
+<g >
+<title>dequeue_task_fair (145,998,106 samples, 2.92%)</title><rect x="781.3" y="549" width="34.5" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="784.28" y="559.5" >de..</text>
+</g>
+<g >
+<title>event_sched_in (93,514,147 samples, 1.87%)</title><rect x="570.8" y="421" width="22.1" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="573.82" y="431.5" >e..</text>
+</g>
+<g >
+<title>[libc.so.6] (47,186,333 samples, 0.95%)</title><rect x="644.9" y="501" width="11.1" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="647.89" y="511.5" ></text>
+</g>
+<g >
+<title>native_write_msr (7,325,196 samples, 0.15%)</title><rect x="452.3" y="501" width="1.8" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="455.33" y="511.5" ></text>
+</g>
+<g >
+<title>dequeue_task (179,175,476 samples, 3.59%)</title><rect x="1080.8" y="565" width="42.3" height="15.0" fill="rgb(244,183,43)" rx="2" ry="2" />
+<text  x="1083.75" y="575.5" >deq..</text>
+</g>
+<g >
+<title>[libc.so.6] (138,121,759 samples, 2.77%)</title><rect x="704.6" y="821" width="32.7" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="707.61" y="831.5" >[l..</text>
+</g>
+<g >
+<title>dog:workers_gua (815,228,360 samples, 16.33%)</title><rect x="295.0" y="853" width="192.7" height="15.0" fill="rgb(253,224,53)" rx="2" ry="2" />
+<text  x="298.01" y="863.5" >dog:workers_gua</text>
+</g>
+<g >
+<title>visit_groups_merge.constprop.0.isra.0 (92,229,620 samples, 1.85%)</title><rect x="50.7" y="501" width="21.8" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="53.70" y="511.5" >v..</text>
+</g>
+<g >
+<title>intel_pmu_enable_all (8,836,746 samples, 0.18%)</title><rect x="877.4" y="517" width="2.0" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="880.35" y="527.5" ></text>
+</g>
+<g >
+<title>__ip_finish_output (42,716,194 samples, 0.86%)</title><rect x="945.5" y="293" width="10.1" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="948.53" y="303.5" ></text>
+</g>
+<g >
+<title>event_process_active_single_queue (11,833,555 samples, 0.24%)</title><rect x="288.7" y="757" width="2.8" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="291.70" y="767.5" ></text>
+</g>
+<g >
+<title>Envoy::Event::DispatcherImpl::runPostCallbacks (49,295,291 samples, 0.99%)</title><rect x="1152.7" y="741" width="11.7" height="15.0" fill="rgb(253,224,53)" rx="2" ry="2" />
+<text  x="1155.73" y="751.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ConnectionImpl::dispatch (54,035,710 samples, 1.08%)</title><rect x="656.0" y="565" width="12.8" height="15.0" fill="rgb(214,44,10)" rx="2" ry="2" />
+<text  x="659.04" y="575.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (860,363,162 samples, 17.24%)</title><rect x="986.6" y="837" width="203.4" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="989.61" y="847.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>inet_sendmsg (42,716,194 samples, 0.86%)</title><rect x="945.5" y="485" width="10.1" height="15.0" fill="rgb(244,183,43)" rx="2" ry="2" />
+<text  x="948.53" y="495.5" ></text>
+</g>
+<g >
+<title>x86_pmu_enable (4,923,447 samples, 0.10%)</title><rect x="240.2" y="533" width="1.1" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="243.15" y="543.5" ></text>
+</g>
+<g >
+<title>dequeue_task (105,035,687 samples, 2.10%)</title><rect x="539.2" y="517" width="24.8" height="15.0" fill="rgb(244,183,43)" rx="2" ry="2" />
+<text  x="542.20" y="527.5" >d..</text>
+</g>
+<g >
+<title>update_load_avg (51,638,464 samples, 1.03%)</title><rect x="803.6" y="517" width="12.2" height="15.0" fill="rgb(240,165,39)" rx="2" ry="2" />
+<text  x="806.59" y="527.5" ></text>
+</g>
+<g >
+<title>__sys_sendto (42,716,194 samples, 0.86%)</title><rect x="945.5" y="517" width="10.1" height="15.0" fill="rgb(236,146,34)" rx="2" ry="2" />
+<text  x="948.53" y="527.5" ></text>
+</g>
+<g >
+<title>net_rx_action (15,677,555 samples, 0.31%)</title><rect x="594.5" y="437" width="3.7" height="15.0" fill="rgb(240,164,39)" rx="2" ry="2" />
+<text  x="597.47" y="447.5" ></text>
+</g>
+<g >
+<title>__napi_poll (15,677,555 samples, 0.31%)</title><rect x="594.5" y="421" width="3.7" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="597.47" y="431.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Event::DispatcherImpl::createFileEvent (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="725" width="7.1" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="1167.38" y="735.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;std::__1::__bind&lt;void  (50,969,270 samples, 1.02%)</title><rect x="962.5" y="757" width="12.0" height="15.0" fill="rgb(232,124,29)" rx="2" ry="2" />
+<text  x="965.45" y="767.5" ></text>
+</g>
+<g >
+<title>napi_complete_done (15,677,555 samples, 0.31%)</title><rect x="594.5" y="389" width="3.7" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
+<text  x="597.47" y="399.5" ></text>
+</g>
+<g >
+<title>do_epoll_wait (428,957,810 samples, 8.59%)</title><rect x="518.3" y="613" width="101.4" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="521.26" y="623.5" >do_epoll_wait</text>
+</g>
+<g >
+<title>Envoy::Network::ConnectionImpl::onFileEvent (54,035,710 samples, 1.08%)</title><rect x="656.0" y="645" width="12.8" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="659.04" y="655.5" ></text>
+</g>
+<g >
+<title>__ip_queue_xmit (42,716,194 samples, 0.86%)</title><rect x="945.5" y="357" width="10.1" height="15.0" fill="rgb(253,223,53)" rx="2" ry="2" />
+<text  x="948.53" y="367.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ConnectionImpl::onMessageCompleteImpl (54,035,710 samples, 1.08%)</title><rect x="656.0" y="501" width="12.8" height="15.0" fill="rgb(208,16,3)" rx="2" ry="2" />
+<text  x="659.04" y="511.5" ></text>
+</g>
+<g >
+<title>absl::lts_20240722::time_internal::cctz::detail::format (18,802,407 samples, 0.38%)</title><rect x="668.8" y="597" width="4.5" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="671.81" y="607.5" ></text>
+</g>
+<g >
+<title>ctx_sched_in (143,555,821 samples, 2.88%)</title><rect x="38.6" y="517" width="33.9" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="41.57" y="527.5" >ct..</text>
+</g>
+<g >
+<title>event_base_loop (914,453,128 samples, 18.32%)</title><rect x="78.8" y="773" width="216.2" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="81.84" y="783.5" >event_base_loop</text>
+</g>
+<g >
+<title>tcp_sendmsg (42,716,194 samples, 0.86%)</title><rect x="945.5" y="469" width="10.1" height="15.0" fill="rgb(223,83,19)" rx="2" ry="2" />
+<text  x="948.53" y="479.5" ></text>
+</g>
+<g >
+<title>dequeue_task_fair (69,513,116 samples, 1.39%)</title><rect x="22.1" y="549" width="16.5" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="25.14" y="559.5" ></text>
+</g>
+<g >
+<title>__netif_receive_skb_list_core (15,677,555 samples, 0.31%)</title><rect x="594.5" y="357" width="3.7" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="597.47" y="367.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (477,950,341 samples, 9.58%)</title><rect x="506.7" y="661" width="113.0" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="509.68" y="671.5" >do_syscall_64</text>
+</g>
+<g >
+<title>sched_clock_cpu (449,898 samples, 0.01%)</title><rect x="861.9" y="501" width="0.1" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="864.90" y="511.5" ></text>
+</g>
+<g >
+<title>finish_task_switch.isra.0 (109,965,863 samples, 2.20%)</title><rect x="428.1" y="565" width="26.0" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="431.06" y="575.5" >f..</text>
+</g>
+<g >
+<title>perf_event_groups_first (55,332,159 samples, 1.11%)</title><rect x="227.0" y="501" width="13.1" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="229.97" y="511.5" ></text>
+</g>
+<g >
+<title>x64_sys_call (42,716,194 samples, 0.86%)</title><rect x="945.5" y="549" width="10.1" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="948.53" y="559.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (668,890,712 samples, 13.40%)</title><rect x="754.7" y="709" width="158.1" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="757.66" y="719.5" >do_syscall_64</text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ConnectionImpl::onMessageComplete (54,035,710 samples, 1.08%)</title><rect x="656.0" y="517" width="12.8" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="659.04" y="527.5" ></text>
+</g>
+<g >
+<title>finish_task_switch.isra.0 (58,930,451 samples, 1.18%)</title><rect x="1134.7" y="565" width="13.9" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="1137.67" y="575.5" ></text>
+</g>
+<g >
+<title>futex_wait_queue_me (1,327,626 samples, 0.03%)</title><rect x="704.6" y="597" width="0.3" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="707.61" y="607.5" ></text>
+</g>
+<g >
+<title>native_sched_clock (449,898 samples, 0.01%)</title><rect x="861.9" y="469" width="0.1" height="15.0" fill="rgb(218,64,15)" rx="2" ry="2" />
+<text  x="864.90" y="479.5" ></text>
+</g>
+<g >
+<title>Envoy::Extensions::TransportSockets::Tls::ContextImpl::daysUntilFirstCertExpires (47,186,333 samples, 0.95%)</title><rect x="644.9" y="597" width="11.1" height="15.0" fill="rgb(226,100,24)" rx="2" ry="2" />
+<text  x="647.89" y="607.5" ></text>
+</g>
+<g >
+<title>epoll_wait (768,383,212 samples, 15.39%)</title><rect x="737.3" y="741" width="181.6" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="740.26" y="751.5" >epoll_wait</text>
+</g>
+<g >
+<title>ctx_sched_in (101,885,039 samples, 2.04%)</title><rect x="428.2" y="517" width="24.1" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="431.24" y="527.5" >c..</text>
+</g>
+<g >
+<title>epoll_wait (63,405,754 samples, 1.27%)</title><rect x="930.5" y="757" width="15.0" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="933.54" y="767.5" ></text>
+</g>
+<g >
+<title>iterate_groups (69,254,992 samples, 1.39%)</title><rect x="879.4" y="549" width="16.4" height="15.0" fill="rgb(213,40,9)" rx="2" ry="2" />
+<text  x="882.44" y="559.5" ></text>
+</g>
+<g >
+<title>Envoy::Network::IoSocketHandleImpl::write (42,716,194 samples, 0.86%)</title><rect x="945.5" y="645" width="10.1" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="948.53" y="655.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::ThreadLocal::InstanceImpl::SlotImpl::set (74,933,489 samples, 1.50%)</title><rect x="678.8" y="645" width="17.7" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="681.77" y="655.5" ></text>
+</g>
+<g >
+<title>rcu_read_unlock_strict (60,664,698 samples, 1.22%)</title><rect x="605.3" y="469" width="14.4" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="608.33" y="479.5" ></text>
+</g>
+<g >
+<title>do_epoll_wait (597,116,967 samples, 11.96%)</title><rect x="754.7" y="661" width="141.1" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="757.66" y="671.5" >do_epoll_wait</text>
+</g>
+<g >
+<title>gpr_cv_wait (63,861,717 samples, 1.28%)</title><rect x="704.6" y="773" width="15.1" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="707.61" y="783.5" ></text>
+</g>
+<g >
+<title>Envoy::Thread::PosixThreadFactory::createPthread (267,143,878 samples, 5.35%)</title><rect x="10.0" y="805" width="63.2" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="13.00" y="815.5" >Envoy:..</text>
+</g>
+<g >
+<title>nft_counter_eval (42,716,194 samples, 0.86%)</title><rect x="945.5" y="37" width="10.1" height="15.0" fill="rgb(217,55,13)" rx="2" ry="2" />
+<text  x="948.53" y="47.5" ></text>
+</g>
+<g >
+<title>absl::lts_20240722::CondVar::WaitCommon (267,143,878 samples, 5.35%)</title><rect x="10.0" y="773" width="63.2" height="15.0" fill="rgb(231,121,28)" rx="2" ry="2" />
+<text  x="13.00" y="783.5" >absl::..</text>
+</g>
+<g >
+<title>asm_common_interrupt (15,677,555 samples, 0.31%)</title><rect x="594.5" y="501" width="3.7" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="597.47" y="511.5" ></text>
+</g>
+<g >
+<title>queue_core_balance (30,258,374 samples, 0.61%)</title><rect x="598.2" y="485" width="7.1" height="15.0" fill="rgb(207,12,2)" rx="2" ry="2" />
+<text  x="601.17" y="495.5" ></text>
+</g>
+<g >
+<title>perf_event_update_userpage (48,844,554 samples, 0.98%)</title><rect x="61.0" y="437" width="11.5" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="63.96" y="447.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Event::DispatcherImpl::createFileEvent (42,716,194 samples, 0.86%)</title><rect x="945.5" y="725" width="10.1" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="948.53" y="735.5" ></text>
+</g>
+<g >
+<title>event_base_loop (860,363,162 samples, 17.24%)</title><rect x="986.6" y="773" width="203.4" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="989.61" y="783.5" >event_base_loop</text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (42,716,194 samples, 0.86%)</title><rect x="945.5" y="581" width="10.1" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="948.53" y="591.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (815,228,360 samples, 16.33%)</title><rect x="295.0" y="837" width="192.7" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="298.01" y="847.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>Envoy::DateFormatter::Specifier::toString (18,802,407 samples, 0.38%)</title><rect x="668.8" y="629" width="4.5" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="671.81" y="639.5" ></text>
+</g>
+<g >
+<title>__napi_poll (42,716,194 samples, 0.86%)</title><rect x="945.5" y="181" width="10.1" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="948.53" y="191.5" ></text>
+</g>
+<g >
+<title>dog:main_thread (938,520,320 samples, 18.80%)</title><rect x="73.2" y="853" width="221.8" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="76.15" y="863.5" >dog:main_thread</text>
+</g>
+<g >
+<title>__fget_light (21,284,127 samples, 0.43%)</title><rect x="81.5" y="629" width="5.0" height="15.0" fill="rgb(233,132,31)" rx="2" ry="2" />
+<text  x="84.49" y="639.5" ></text>
+</g>
+<g >
+<title>merge_sched_in (64,608,393 samples, 1.29%)</title><rect x="862.0" y="485" width="15.3" height="15.0" fill="rgb(233,132,31)" rx="2" ry="2" />
+<text  x="865.00" y="495.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (47,186,333 samples, 0.95%)</title><rect x="644.9" y="469" width="11.1" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="647.89" y="479.5" ></text>
+</g>
+<g >
+<title>x86_pmu_enable (1,327,626 samples, 0.03%)</title><rect x="704.6" y="517" width="0.3" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="707.61" y="527.5" ></text>
+</g>
+<g >
+<title>update_rq_clock (29,329,834 samples, 0.59%)</title><rect x="272.0" y="565" width="6.9" height="15.0" fill="rgb(231,119,28)" rx="2" ry="2" />
+<text  x="275.00" y="575.5" ></text>
+</g>
+<g >
+<title>finish_task_switch.isra.0 (144,425,012 samples, 2.89%)</title><rect x="564.0" y="517" width="34.2" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="567.03" y="527.5" >fi..</text>
+</g>
+<g >
+<title>__schedule (109,965,863 samples, 2.20%)</title><rect x="428.1" y="581" width="26.0" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="431.06" y="591.5" >_..</text>
+</g>
+<g >
+<title>__softirqentry_text_start (42,716,194 samples, 0.86%)</title><rect x="945.5" y="229" width="10.1" height="15.0" fill="rgb(234,135,32)" rx="2" ry="2" />
+<text  x="948.53" y="239.5" ></text>
+</g>
+<g >
+<title>perf_event_sched_in (50,634,983 samples, 1.01%)</title><rect x="1134.8" y="533" width="11.9" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="1137.76" y="543.5" ></text>
+</g>
+<g >
+<title>futex_wait (1,327,626 samples, 0.03%)</title><rect x="704.6" y="613" width="0.3" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="707.61" y="623.5" ></text>
+</g>
+<g >
+<title>update_curr (71,729,000 samples, 1.44%)</title><rect x="786.6" y="517" width="17.0" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="789.63" y="527.5" ></text>
+</g>
+<g >
+<title>__perf_event_task_sched_in (269,218,535 samples, 5.39%)</title><rect x="815.8" y="549" width="63.6" height="15.0" fill="rgb(231,121,29)" rx="2" ry="2" />
+<text  x="818.80" y="559.5" >__perf..</text>
+</g>
+<g >
+<title>__x64_sys_epoll_wait (476,290,574 samples, 9.54%)</title><rect x="369.4" y="677" width="112.6" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="372.42" y="687.5" >__x64_sys_epo..</text>
+</g>
+<g >
+<title>epoll_wait (505,277,514 samples, 10.12%)</title><rect x="506.7" y="693" width="119.4" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="509.68" y="703.5" >epoll_wait</text>
+</g>
+<g >
+<title>nft_do_chain (42,716,194 samples, 0.86%)</title><rect x="945.5" y="53" width="10.1" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="948.53" y="63.5" ></text>
+</g>
+<g >
+<title>epoll_dispatch (708,812,065 samples, 14.20%)</title><rect x="314.5" y="757" width="167.5" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="317.45" y="767.5" >epoll_dispatch</text>
+</g>
+<g >
+<title>__hrtimer_init (80,598,617 samples, 1.61%)</title><rect x="1045.5" y="581" width="19.1" height="15.0" fill="rgb(227,101,24)" rx="2" ry="2" />
+<text  x="1048.52" y="591.5" ></text>
+</g>
+<g >
+<title>pthread_mutex_lock (53,657,766 samples, 1.07%)</title><rect x="626.1" y="693" width="12.7" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="629.13" y="703.5" ></text>
+</g>
+<g >
+<title>__perf_event_task_sched_in (61,589,101 samples, 1.23%)</title><rect x="226.8" y="549" width="14.5" height="15.0" fill="rgb(231,121,29)" rx="2" ry="2" />
+<text  x="229.76" y="559.5" ></text>
+</g>
+<g >
+<title>__cgroup_account_cputime (26,876,075 samples, 0.54%)</title><rect x="557.7" y="453" width="6.3" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="560.68" y="463.5" ></text>
+</g>
+<g >
+<title>ip_output (42,716,194 samples, 0.86%)</title><rect x="945.5" y="325" width="10.1" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="948.53" y="335.5" ></text>
+</g>
+<g >
+<title>prepare_task_switch (60,664,698 samples, 1.22%)</title><rect x="605.3" y="517" width="14.4" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="608.33" y="527.5" ></text>
+</g>
+<g >
+<title>_start (917,447,442 samples, 18.38%)</title><rect x="487.7" y="837" width="216.9" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="490.73" y="847.5" >_start</text>
+</g>
+<g >
+<title>intel_pmu_enable_all (6,528,776 samples, 0.13%)</title><rect x="592.9" y="469" width="1.6" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="595.93" y="479.5" ></text>
+</g>
+<g >
+<title>perf_event_sched_in (55,759,356 samples, 1.12%)</title><rect x="227.0" y="533" width="13.2" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="229.97" y="543.5" ></text>
+</g>
+<g >
+<title>Envoy::Server::InstanceBase::flushStatsInternal (47,186,333 samples, 0.95%)</title><rect x="644.9" y="645" width="11.1" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="647.89" y="655.5" ></text>
+</g>
+<g >
+<title>AbslInternalPerThreadSemWait_lts_20240722 (267,143,878 samples, 5.35%)</title><rect x="10.0" y="757" width="63.2" height="15.0" fill="rgb(253,223,53)" rx="2" ry="2" />
+<text  x="13.00" y="767.5" >AbslIn..</text>
+</g>
+<g >
+<title>grpc_core::(anonymous namespace)::ThreadInternalsPosix::ThreadInternalsPosix (138,121,759 samples, 2.77%)</title><rect x="704.6" y="805" width="32.7" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="707.61" y="815.5" >gr..</text>
+</g>
+<g >
+<title>ep_poll (425,988,243 samples, 8.53%)</title><rect x="369.4" y="645" width="100.7" height="15.0" fill="rgb(238,151,36)" rx="2" ry="2" />
+<text  x="372.42" y="655.5" >ep_poll</text>
+</g>
+<g >
+<title>Envoy::Server::StatsHandler::prometheusFlushAndRender (54,035,710 samples, 1.08%)</title><rect x="656.0" y="389" width="12.8" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="659.04" y="399.5" ></text>
+</g>
+<g >
+<title>ep_poll (813,964,323 samples, 16.31%)</title><rect x="86.5" y="645" width="192.4" height="15.0" fill="rgb(238,151,36)" rx="2" ry="2" />
+<text  x="89.52" y="655.5" >ep_poll</text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Server::GuardDogImpl::start (815,228,360 samples, 16.33%)</title><rect x="295.0" y="789" width="192.7" height="15.0" fill="rgb(217,59,14)" rx="2" ry="2" />
+<text  x="298.01" y="799.5" >std::__1::__function::__f..</text>
+</g>
+<g >
+<title>[libc.so.6] (1,054,788,331 samples, 21.13%)</title><rect x="737.3" y="821" width="249.3" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="740.26" y="831.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>tcp_write_xmit (42,716,194 samples, 0.86%)</title><rect x="945.5" y="405" width="10.1" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="948.53" y="415.5" ></text>
+</g>
+<g >
+<title>perf_event_groups_first (50,286,809 samples, 1.01%)</title><rect x="1134.8" y="501" width="11.9" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="1137.84" y="511.5" ></text>
+</g>
+<g >
+<title>__tcp_transmit_skb (42,716,194 samples, 0.86%)</title><rect x="945.5" y="389" width="10.1" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="948.53" y="399.5" ></text>
+</g>
+<g >
+<title>x64_sys_call (835,248,450 samples, 16.73%)</title><rect x="81.5" y="693" width="197.4" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="84.49" y="703.5" >x64_sys_call</text>
+</g>
+<g >
+<title>Envoy::Stats::SymbolTable::lessThan (54,035,710 samples, 1.08%)</title><rect x="656.0" y="325" width="12.8" height="15.0" fill="rgb(234,134,32)" rx="2" ry="2" />
+<text  x="659.04" y="335.5" ></text>
+</g>
+<g >
+<title>Envoy::Stats::ThreadLocalStoreImpl::mergeInternal (47,186,333 samples, 0.95%)</title><rect x="644.9" y="661" width="11.1" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="647.89" y="671.5" ></text>
+</g>
+<g >
+<title>clock_gettime (21,199,498 samples, 0.42%)</title><rect x="501.7" y="709" width="5.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="504.67" y="719.5" ></text>
+</g>
+<g >
+<title>nft_match_eval (15,677,555 samples, 0.31%)</title><rect x="594.5" y="229" width="3.7" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="597.47" y="239.5" ></text>
+</g>
+<g >
+<title>merge_sched_in (50,563,526 samples, 1.01%)</title><rect x="440.4" y="485" width="11.9" height="15.0" fill="rgb(233,132,31)" rx="2" ry="2" />
+<text  x="443.37" y="495.5" ></text>
+</g>
+<g >
+<title>update_curr (310,503,030 samples, 6.22%)</title><rect x="153.4" y="517" width="73.4" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="156.36" y="527.5" >update_c..</text>
+</g>
+<g >
+<title>do_epoll_wait (835,248,450 samples, 16.73%)</title><rect x="81.5" y="661" width="197.4" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="84.49" y="671.5" >do_epoll_wait</text>
+</g>
+<g >
+<title>absl::lts_20240722::synchronization_internal::FutexWaiter::Wait (1,327,626 samples, 0.03%)</title><rect x="704.6" y="725" width="0.3" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="707.61" y="735.5" ></text>
+</g>
+<g >
+<title>schedule_hrtimeout_range_clock (409,182,453 samples, 8.20%)</title><rect x="522.9" y="565" width="96.8" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="525.94" y="575.5" >schedule_hr..</text>
+</g>
+<g >
+<title>schedule_hrtimeout_range_clock (240,084,243 samples, 4.81%)</title><rect x="397.3" y="613" width="56.8" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="400.30" y="623.5" >schedu..</text>
+</g>
+<g >
+<title>schedule (172,025,024 samples, 3.45%)</title><rect x="413.4" y="597" width="40.7" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="416.39" y="607.5" >sch..</text>
+</g>
+<g >
+<title>calc_timer_values (64,711,418 samples, 1.30%)</title><rect x="570.8" y="373" width="15.3" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="573.82" y="383.5" ></text>
+</g>
+<g >
+<title>Envoy::Network::ConnectionImpl::onReadReady (54,035,710 samples, 1.08%)</title><rect x="656.0" y="629" width="12.8" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="659.04" y="639.5" ></text>
+</g>
+<g >
+<title>__perf_event_task_sched_in (1,327,626 samples, 0.03%)</title><rect x="704.6" y="533" width="0.3" height="15.0" fill="rgb(231,121,29)" rx="2" ry="2" />
+<text  x="707.61" y="543.5" ></text>
+</g>
+<g >
+<title>visit_groups_merge.constprop.0.isra.0 (50,563,526 samples, 1.01%)</title><rect x="440.4" y="501" width="11.9" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="443.37" y="511.5" ></text>
+</g>
+<g >
+<title>Envoy::MainCommon::main (917,447,442 samples, 18.38%)</title><rect x="487.7" y="773" width="216.9" height="15.0" fill="rgb(229,111,26)" rx="2" ry="2" />
+<text  x="490.73" y="783.5" >Envoy::MainCommon::main</text>
+</g>
+<g >
+<title>x64_sys_call (528,529,557 samples, 10.59%)</title><rect x="1027.8" y="693" width="124.9" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="1030.79" y="703.5" >x64_sys_call</text>
+</g>
+<g >
+<title>update_cfs_group (39,969,944 samples, 0.80%)</title><rect x="539.2" y="469" width="9.5" height="15.0" fill="rgb(242,174,41)" rx="2" ry="2" />
+<text  x="542.20" y="479.5" ></text>
+</g>
+<g >
+<title>psi_task_switch (69,254,992 samples, 1.39%)</title><rect x="879.4" y="565" width="16.4" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="882.44" y="575.5" ></text>
+</g>
+<g >
+<title>schedule (340,383,771 samples, 6.82%)</title><rect x="539.2" y="549" width="80.5" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="542.20" y="559.5" >schedule</text>
+</g>
+<g >
+<title>__cgroup_account_cputime (69,513,116 samples, 1.39%)</title><rect x="22.1" y="501" width="16.5" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="25.14" y="511.5" ></text>
+</g>
+<g >
+<title>Envoy::Network::ConnectionImpl::onWriteReady (42,716,194 samples, 0.86%)</title><rect x="945.5" y="677" width="10.1" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="948.53" y="687.5" ></text>
+</g>
+<g >
+<title>ip_queue_xmit (42,716,194 samples, 0.86%)</title><rect x="945.5" y="373" width="10.1" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="948.53" y="383.5" ></text>
+</g>
+<g >
+<title>visit_groups_merge.constprop.0.isra.0 (64,608,393 samples, 1.29%)</title><rect x="862.0" y="501" width="15.3" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="865.00" y="511.5" ></text>
+</g>
+<g >
+<title>ip_local_deliver (15,677,555 samples, 0.31%)</title><rect x="594.5" y="293" width="3.7" height="15.0" fill="rgb(230,116,27)" rx="2" ry="2" />
+<text  x="597.47" y="303.5" ></text>
+</g>
+<g >
+<title>get_nohz_timer_target (39,661,085 samples, 0.79%)</title><rect x="771.9" y="565" width="9.4" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="774.91" y="575.5" ></text>
+</g>
+<g >
+<title>dequeue_entity (389,453,922 samples, 7.80%)</title><rect x="134.7" y="533" width="92.1" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="137.69" y="543.5" >dequeue_ent..</text>
+</g>
+<g >
+<title>tcp_push (42,716,194 samples, 0.86%)</title><rect x="945.5" y="437" width="10.1" height="15.0" fill="rgb(243,176,42)" rx="2" ry="2" />
+<text  x="948.53" y="447.5" ></text>
+</g>
+<g >
+<title>__fget_files (21,284,127 samples, 0.43%)</title><rect x="81.5" y="613" width="5.0" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="84.49" y="623.5" ></text>
+</g>
+<g >
+<title>x64_sys_call (428,957,810 samples, 8.59%)</title><rect x="518.3" y="645" width="101.4" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="521.26" y="655.5" >x64_sys_call</text>
+</g>
+<g >
+<title>ip_sublist_rcv (15,677,555 samples, 0.31%)</title><rect x="594.5" y="325" width="3.7" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="597.47" y="335.5" ></text>
+</g>
+<g >
+<title>dequeue_entity (105,035,687 samples, 2.10%)</title><rect x="539.2" y="485" width="24.8" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="542.20" y="495.5" >d..</text>
+</g>
+<g >
+<title>dequeue_task_fair (465,706,643 samples, 9.33%)</title><rect x="116.7" y="549" width="110.1" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="119.67" y="559.5" >dequeue_task_..</text>
+</g>
+<g >
+<title>sched_clock_cpu (64,711,418 samples, 1.30%)</title><rect x="570.8" y="357" width="15.3" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="573.82" y="367.5" ></text>
+</g>
+<g >
+<title>__calc_delta (24,739,631 samples, 0.50%)</title><rect x="1117.3" y="501" width="5.8" height="15.0" fill="rgb(247,193,46)" rx="2" ry="2" />
+<text  x="1120.26" y="511.5" ></text>
+</g>
+<g >
+<title>hrtimer_start_range_ns (68,059,219 samples, 1.36%)</title><rect x="397.3" y="597" width="16.1" height="15.0" fill="rgb(244,179,42)" rx="2" ry="2" />
+<text  x="400.30" y="607.5" ></text>
+</g>
+<g >
+<title>perf_event_sched_in (101,885,039 samples, 2.04%)</title><rect x="428.2" y="533" width="24.1" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="431.24" y="543.5" >p..</text>
+</g>
+<g >
+<title>iterate_groups (12,063,934 samples, 0.24%)</title><rect x="241.3" y="565" width="2.9" height="15.0" fill="rgb(213,40,9)" rx="2" ry="2" />
+<text  x="244.32" y="575.5" ></text>
+</g>
+<g >
+<title>dequeue_entity (69,513,116 samples, 1.39%)</title><rect x="22.1" y="533" width="16.5" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="25.14" y="543.5" ></text>
+</g>
+<g >
+<title>nft_do_chain_ipv4 (42,716,194 samples, 0.86%)</title><rect x="945.5" y="69" width="10.1" height="15.0" fill="rgb(213,40,9)" rx="2" ry="2" />
+<text  x="948.53" y="79.5" ></text>
+</g>
+<g >
+<title>netif_receive_skb_list_internal (15,677,555 samples, 0.31%)</title><rect x="594.5" y="373" width="3.7" height="15.0" fill="rgb(238,151,36)" rx="2" ry="2" />
+<text  x="597.47" y="383.5" ></text>
+</g>
+<g >
+<title>update_curr (69,513,116 samples, 1.39%)</title><rect x="22.1" y="517" width="16.5" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="25.14" y="527.5" ></text>
+</g>
+<g >
+<title>__local_bh_enable_ip (42,716,194 samples, 0.86%)</title><rect x="945.5" y="261" width="10.1" height="15.0" fill="rgb(237,147,35)" rx="2" ry="2" />
+<text  x="948.53" y="271.5" ></text>
+</g>
+<g >
+<title>perf_log_itrace_start (64,608,393 samples, 1.29%)</title><rect x="862.0" y="453" width="15.3" height="15.0" fill="rgb(233,132,31)" rx="2" ry="2" />
+<text  x="865.00" y="463.5" ></text>
+</g>
+<g >
+<title>event_sched_in (64,608,393 samples, 1.29%)</title><rect x="862.0" y="469" width="15.3" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="865.00" y="479.5" ></text>
+</g>
+<g >
+<title>pick_next_task_idle (30,258,374 samples, 0.61%)</title><rect x="598.2" y="501" width="7.1" height="15.0" fill="rgb(217,59,14)" rx="2" ry="2" />
+<text  x="601.17" y="511.5" ></text>
+</g>
+<g >
+<title>schedule (304,472,906 samples, 6.10%)</title><rect x="1080.8" y="597" width="71.9" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="1083.75" y="607.5" >schedule</text>
+</g>
+<g >
+<title>schedule_hrtimeout_range_clock (786,122,295 samples, 15.75%)</title><rect x="93.1" y="613" width="185.8" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="96.10" y="623.5" >schedule_hrtimeout_range..</text>
+</g>
+<g >
+<title>absl::lts_20240722::time_internal::cctz::detail::(anonymous namespace)::FormatTM (18,802,407 samples, 0.38%)</title><rect x="668.8" y="581" width="4.5" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="671.81" y="591.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (1,327,626 samples, 0.03%)</title><rect x="704.6" y="677" width="0.3" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="707.61" y="687.5" ></text>
+</g>
+<g >
+<title>syscall_exit_to_user_mode (48,992,531 samples, 0.98%)</title><rect x="506.7" y="645" width="11.6" height="15.0" fill="rgb(251,211,50)" rx="2" ry="2" />
+<text  x="509.68" y="655.5" ></text>
+</g>
+<g >
+<title>finish_task_switch.isra.0 (269,218,535 samples, 5.39%)</title><rect x="815.8" y="565" width="63.6" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="818.80" y="575.5" >finish..</text>
+</g>
+<g >
+<title>syscall_return_via_sysret (27,327,173 samples, 0.55%)</title><rect x="619.7" y="677" width="6.4" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="622.67" y="687.5" ></text>
+</g>
+<g >
+<title>prepare_task_switch (17,444,531 samples, 0.35%)</title><rect x="1148.6" y="565" width="4.1" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="1151.61" y="575.5" ></text>
+</g>
+<g >
+<title>Envoy::Thread::PosixThreadFactory::createPthread (1,054,788,331 samples, 21.13%)</title><rect x="737.3" y="805" width="249.3" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="740.26" y="815.5" >Envoy::Thread::PosixThreadFactory..</text>
+</g>
+<g >
+<title>Envoy::Http::TlsCachingDateProviderImpl::onRefreshDate (117,050,480 samples, 2.34%)</title><rect x="668.8" y="693" width="27.7" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="671.81" y="703.5" >E..</text>
+</g>
+<g >
+<title>intel_pmu_enable_all (1,327,626 samples, 0.03%)</title><rect x="704.6" y="501" width="0.3" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="707.61" y="511.5" ></text>
+</g>
+<g >
+<title>x86_pmu_enable (7,946,888 samples, 0.16%)</title><rect x="1146.7" y="533" width="1.9" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="1149.73" y="543.5" ></text>
+</g>
+<g >
+<title>hrtimer_start_range_ns (48,400,904 samples, 0.97%)</title><rect x="385.9" y="613" width="11.4" height="15.0" fill="rgb(244,179,42)" rx="2" ry="2" />
+<text  x="388.86" y="623.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (267,143,878 samples, 5.35%)</title><rect x="10.0" y="821" width="63.2" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="13.00" y="831.5" >[libc...</text>
+</g>
+<g >
+<title>Envoy::Extensions::TransportSockets::Tls::Utility::getDaysUntilExpiration (47,186,333 samples, 0.95%)</title><rect x="644.9" y="581" width="11.1" height="15.0" fill="rgb(209,22,5)" rx="2" ry="2" />
+<text  x="647.89" y="591.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (835,248,450 samples, 16.73%)</title><rect x="81.5" y="725" width="197.4" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="84.49" y="735.5" >entry_SYSCALL_64_after_hw..</text>
+</g>
+<g >
+<title>schedule (484,471,633 samples, 9.71%)</title><rect x="781.3" y="597" width="114.5" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="784.28" y="607.5" >schedule</text>
+</g>
+<g >
+<title>visit_groups_merge.constprop.0.isra.0 (93,514,147 samples, 1.87%)</title><rect x="570.8" y="453" width="22.1" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="573.82" y="463.5" >v..</text>
+</g>
+<g >
+<title>__rseq_handle_notify_resume (48,992,531 samples, 0.98%)</title><rect x="506.7" y="597" width="11.6" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="509.68" y="607.5" ></text>
+</g>
+<g >
+<title>schedule_hrtimeout_range (428,957,810 samples, 8.59%)</title><rect x="518.3" y="581" width="101.4" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="521.26" y="591.5" >schedule_hrt..</text>
+</g>
+<g >
+<title>Envoy::AccessLog::AccessLogFileImpl::flushThreadFunc (267,143,878 samples, 5.35%)</title><rect x="10.0" y="789" width="63.2" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="13.00" y="799.5" >Envoy:..</text>
+</g>
+<g >
+<title>absl::lts_20240722::FormatTime (18,802,407 samples, 0.38%)</title><rect x="668.8" y="613" width="4.5" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="671.81" y="623.5" ></text>
+</g>
+<g >
+<title>schedule_hrtimeout_range_clock (524,132,718 samples, 10.50%)</title><rect x="771.9" y="613" width="123.9" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="774.91" y="623.5" >schedule_hrtime..</text>
+</g>
+<g >
+<title>Envoy::Thread::PosixThreadFactory::createPthread (860,363,162 samples, 17.24%)</title><rect x="986.6" y="805" width="203.4" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="989.61" y="815.5" >Envoy::Thread::PosixThread..</text>
+</g>
+<g >
+<title>hrtimer_init_sleeper (80,598,617 samples, 1.61%)</title><rect x="1045.5" y="597" width="19.1" height="15.0" fill="rgb(232,128,30)" rx="2" ry="2" />
+<text  x="1048.52" y="607.5" ></text>
+</g>
+<g >
+<title>hrtimer_start_range_ns (39,661,085 samples, 0.79%)</title><rect x="771.9" y="597" width="9.4" height="15.0" fill="rgb(244,179,42)" rx="2" ry="2" />
+<text  x="774.91" y="607.5" ></text>
+</g>
+<g >
+<title>event_base_loop (732,994,360 samples, 14.68%)</title><rect x="314.5" y="773" width="173.2" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="317.45" y="783.5" >event_base_loop</text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (630,148,794 samples, 12.62%)</title><rect x="1003.8" y="725" width="148.9" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="1006.76" y="735.5" >entry_SYSCALL_64_af..</text>
+</g>
+<g >
+<title>perf_swevent_add (93,514,147 samples, 1.87%)</title><rect x="570.8" y="405" width="22.1" height="15.0" fill="rgb(207,11,2)" rx="2" ry="2" />
+<text  x="573.82" y="415.5" >p..</text>
+</g>
+<g >
+<title>do_epoll_wait (425,988,243 samples, 8.53%)</title><rect x="369.4" y="661" width="100.7" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="372.42" y="671.5" >do_epoll_wait</text>
+</g>
+<g >
+<title>__perf_event_task_sched_out (17,444,531 samples, 0.35%)</title><rect x="1148.6" y="549" width="4.1" height="15.0" fill="rgb(248,198,47)" rx="2" ry="2" />
+<text  x="1151.61" y="559.5" ></text>
+</g>
+<g >
+<title>hrtimer_active (19,775,357 samples, 0.40%)</title><rect x="518.3" y="565" width="4.6" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="521.26" y="575.5" ></text>
+</g>
+<g >
+<title>grpc_global_tim (138,121,759 samples, 2.77%)</title><rect x="704.6" y="853" width="32.7" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="707.61" y="863.5" >gr..</text>
+</g>
+<g >
+<title>enqueue_hrtimer (68,059,219 samples, 1.36%)</title><rect x="397.3" y="565" width="16.1" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
+<text  x="400.30" y="575.5" ></text>
+</g>
+<g >
+<title>native_write_msr (2,737,767 samples, 0.05%)</title><rect x="72.5" y="501" width="0.7" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="75.50" y="511.5" ></text>
+</g>
+<g >
+<title>pthread_mutex_unlock (49,218,670 samples, 0.99%)</title><rect x="918.9" y="741" width="11.6" height="15.0" fill="rgb(231,120,28)" rx="2" ry="2" />
+<text  x="921.91" y="751.5" ></text>
+</g>
+<g >
+<title>event_queue_remove_timeout (25,689,869 samples, 0.51%)</title><rect x="638.8" y="693" width="6.1" height="15.0" fill="rgb(217,58,13)" rx="2" ry="2" />
+<text  x="641.81" y="703.5" ></text>
+</g>
+<g >
+<title>rcu_read_unlock_strict (28,802,729 samples, 0.58%)</title><rect x="586.1" y="389" width="6.8" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="589.12" y="399.5" ></text>
+</g>
+<g >
+<title>perf_event_context_sched_out (60,664,698 samples, 1.22%)</title><rect x="605.3" y="485" width="14.4" height="15.0" fill="rgb(242,170,40)" rx="2" ry="2" />
+<text  x="608.33" y="495.5" ></text>
+</g>
+<g >
+<title>all (4,991,613,252 samples, 100%)</title><rect x="10.0" y="869" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="879.5" ></text>
+</g>
+<g >
+<title>Envoy::Extensions::TransportSockets::Tls::ContextManagerImpl::daysUntilFirstCertExpires (47,186,333 samples, 0.95%)</title><rect x="644.9" y="613" width="11.1" height="15.0" fill="rgb(211,29,7)" rx="2" ry="2" />
+<text  x="647.89" y="623.5" ></text>
+</g>
+<g >
+<title>futex_wait (267,143,878 samples, 5.35%)</title><rect x="10.0" y="629" width="63.2" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="13.00" y="639.5" >futex_..</text>
+</g>
+<g >
+<title>Envoy::Thread::PosixThreadFactory::createPthread (938,520,320 samples, 18.80%)</title><rect x="73.2" y="805" width="221.8" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="76.15" y="815.5" >Envoy::Thread::PosixThreadFac..</text>
+</g>
+<g >
+<title>ctx_sched_in (260,060,905 samples, 5.21%)</title><rect x="815.8" y="517" width="61.5" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="818.80" y="527.5" >ctx_sc..</text>
+</g>
+<g >
+<title>wrk:worker_1 (860,363,162 samples, 17.24%)</title><rect x="986.6" y="853" width="203.4" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="989.61" y="863.5" >wrk:worker_1</text>
+</g>
+<g >
+<title>__hrtimer_start_range_ns (68,059,219 samples, 1.36%)</title><rect x="397.3" y="581" width="16.1" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="400.30" y="591.5" ></text>
+</g>
+<g >
+<title>__perf_event_task_sched_in (146,293,588 samples, 2.93%)</title><rect x="38.6" y="549" width="34.6" height="15.0" fill="rgb(231,121,29)" rx="2" ry="2" />
+<text  x="41.57" y="559.5" >__..</text>
+</g>
+<g >
+<title>net_rx_action (42,716,194 samples, 0.86%)</title><rect x="945.5" y="197" width="10.1" height="15.0" fill="rgb(240,164,39)" rx="2" ry="2" />
+<text  x="948.53" y="207.5" ></text>
+</g>
+<g >
+<title>arch_perf_update_userpage (48,844,554 samples, 0.98%)</title><rect x="61.0" y="421" width="11.5" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="63.96" y="431.5" ></text>
+</g>
+<g >
+<title>Envoy::Server::PrometheusStatsFormatter::statsAsPrometheus (54,035,710 samples, 1.08%)</title><rect x="656.0" y="357" width="12.8" height="15.0" fill="rgb(221,76,18)" rx="2" ry="2" />
+<text  x="659.04" y="367.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (938,520,320 samples, 18.80%)</title><rect x="73.2" y="837" width="221.8" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="76.15" y="847.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>native_write_msr (1,327,626 samples, 0.03%)</title><rect x="704.6" y="485" width="0.3" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="707.61" y="495.5" ></text>
+</g>
+<g >
+<title>handle_softirqs (15,677,555 samples, 0.31%)</title><rect x="594.5" y="453" width="3.7" height="15.0" fill="rgb(238,156,37)" rx="2" ry="2" />
+<text  x="597.47" y="463.5" ></text>
+</g>
+<g >
+<title>dequeue_task_fair (179,175,476 samples, 3.59%)</title><rect x="1080.8" y="549" width="42.3" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="1083.75" y="559.5" >deq..</text>
+</g>
+<g >
+<title>dequeue_task_fair (105,035,687 samples, 2.10%)</title><rect x="539.2" y="501" width="24.8" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="542.20" y="511.5" >d..</text>
+</g>
+<g >
+<title>exit_to_user_mode_prepare (48,992,531 samples, 0.98%)</title><rect x="506.7" y="629" width="11.6" height="15.0" fill="rgb(228,108,25)" rx="2" ry="2" />
+<text  x="509.68" y="639.5" ></text>
+</g>
+<g >
+<title>syscall (267,143,878 samples, 5.35%)</title><rect x="10.0" y="725" width="63.2" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="13.00" y="735.5" >syscall</text>
+</g>
+<g >
+<title>pthread_mutex_lock (34,383,634 samples, 0.69%)</title><rect x="696.5" y="709" width="8.1" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="699.49" y="719.5" ></text>
+</g>
+<g >
+<title>clockevents_program_event (68,447,712 samples, 1.37%)</title><rect x="1064.6" y="549" width="16.2" height="15.0" fill="rgb(244,182,43)" rx="2" ry="2" />
+<text  x="1067.57" y="559.5" ></text>
+</g>
+<g >
+<title>perf_event_update_userpage (64,711,418 samples, 1.30%)</title><rect x="570.8" y="389" width="15.3" height="15.0" fill="rgb(214,45,10)" rx="2" ry="2" />
+<text  x="573.82" y="399.5" ></text>
+</g>
+<g >
+<title>hrtimer_active (75,010,322 samples, 1.50%)</title><rect x="1027.8" y="613" width="17.7" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="1030.79" y="623.5" ></text>
+</g>
+<g >
+<title>reweight_entity (54,336,325 samples, 1.09%)</title><rect x="1087.5" y="501" width="12.8" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="1090.48" y="511.5" ></text>
+</g>
+<g >
+<title>update_cfs_group (54,336,325 samples, 1.09%)</title><rect x="1087.5" y="517" width="12.8" height="15.0" fill="rgb(242,174,41)" rx="2" ry="2" />
+<text  x="1090.48" y="527.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (630,148,794 samples, 12.62%)</title><rect x="1003.8" y="709" width="148.9" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="1006.76" y="719.5" >do_syscall_64</text>
+</g>
+<g >
+<title>Envoy::MainCommonBase::run (917,447,442 samples, 18.38%)</title><rect x="487.7" y="757" width="216.9" height="15.0" fill="rgb(247,196,47)" rx="2" ry="2" />
+<text  x="490.73" y="767.5" >Envoy::MainCommonBase::run</text>
+</g>
+<g >
+<title>nft_do_chain_ipv4 (15,677,555 samples, 0.31%)</title><rect x="594.5" y="261" width="3.7" height="15.0" fill="rgb(213,40,9)" rx="2" ry="2" />
+<text  x="597.47" y="271.5" ></text>
+</g>
+<g >
+<title>__perf_event_task_sched_in (58,930,451 samples, 1.18%)</title><rect x="1134.7" y="549" width="13.9" height="15.0" fill="rgb(231,121,29)" rx="2" ry="2" />
+<text  x="1137.67" y="559.5" ></text>
+</g>
+<g >
+<title>syscall_return_via_sysret (41,311,120 samples, 0.83%)</title><rect x="278.9" y="725" width="9.8" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="281.94" y="735.5" ></text>
+</g>
+<g >
+<title>AccessLogFlush (267,143,878 samples, 5.35%)</title><rect x="10.0" y="853" width="63.2" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="13.00" y="863.5" >Access..</text>
+</g>
+<g >
+<title>pthread_getspecific (62,534,091 samples, 1.25%)</title><rect x="704.9" y="757" width="14.8" height="15.0" fill="rgb(213,37,8)" rx="2" ry="2" />
+<text  x="707.93" y="767.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (525,170,821 samples, 10.52%)</title><rect x="357.9" y="709" width="124.1" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="360.87" y="719.5" >do_syscall_64</text>
+</g>
+<g >
+<title>hrtimer_start_range_ns (68,447,712 samples, 1.37%)</title><rect x="1064.6" y="597" width="16.2" height="15.0" fill="rgb(244,179,42)" rx="2" ry="2" />
+<text  x="1067.57" y="607.5" ></text>
+</g>
+<g >
+<title>do_futex (1,327,626 samples, 0.03%)</title><rect x="704.6" y="629" width="0.3" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="707.61" y="639.5" ></text>
+</g>
+<g >
+<title>__netif_receive_skb_one_core (42,716,194 samples, 0.86%)</title><rect x="945.5" y="133" width="10.1" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="948.53" y="143.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::ConnectionManagerImpl::onData (54,035,710 samples, 1.08%)</title><rect x="656.0" y="597" width="12.8" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="659.04" y="607.5" ></text>
+</g>
+<g >
+<title>dequeue_task (465,706,643 samples, 9.33%)</title><rect x="116.7" y="565" width="110.1" height="15.0" fill="rgb(244,183,43)" rx="2" ry="2" />
+<text  x="119.67" y="575.5" >dequeue_task</text>
+</g>
+<g >
+<title>hrtimer_reprogram (68,447,712 samples, 1.37%)</title><rect x="1064.6" y="581" width="16.2" height="15.0" fill="rgb(222,80,19)" rx="2" ry="2" />
+<text  x="1067.57" y="591.5" ></text>
+</g>
+<g >
+<title>Envoy::ThreadLocal::InstanceImpl::SlotImpl::set (98,248,073 samples, 1.97%)</title><rect x="673.3" y="677" width="23.2" height="15.0" fill="rgb(208,18,4)" rx="2" ry="2" />
+<text  x="676.26" y="687.5" >E..</text>
+</g>
+<g >
+<title>tcp_sendmsg_locked (42,716,194 samples, 0.86%)</title><rect x="945.5" y="453" width="10.1" height="15.0" fill="rgb(215,48,11)" rx="2" ry="2" />
+<text  x="948.53" y="463.5" ></text>
+</g>
+<g >
+<title>perf_event_groups_first (51,326,201 samples, 1.03%)</title><rect x="38.6" y="501" width="12.1" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="41.57" y="511.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (47,186,333 samples, 0.95%)</title><rect x="644.9" y="485" width="11.1" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="647.89" y="495.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ConnectionImpl::dispatch (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="613" width="7.1" height="15.0" fill="rgb(214,44,10)" rx="2" ry="2" />
+<text  x="1167.38" y="623.5" ></text>
+</g>
+<g >
+<title>native_write_msr (4,630,429 samples, 0.09%)</title><rect x="240.2" y="501" width="1.1" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="243.22" y="511.5" ></text>
+</g>
+<g >
+<title>merge_sched_in (93,514,147 samples, 1.87%)</title><rect x="570.8" y="437" width="22.1" height="15.0" fill="rgb(233,132,31)" rx="2" ry="2" />
+<text  x="573.82" y="447.5" >m..</text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (477,950,341 samples, 9.58%)</title><rect x="506.7" y="677" width="113.0" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="509.68" y="687.5" >entry_SYSCALL..</text>
+</g>
+<g >
+<title>do_syscall_64 (267,143,878 samples, 5.35%)</title><rect x="10.0" y="693" width="63.2" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="13.00" y="703.5" >do_sys..</text>
+</g>
+<g >
+<title>Envoy::Server::WorkerImpl::threadRoutine (1,054,788,331 samples, 21.13%)</title><rect x="737.3" y="789" width="249.3" height="15.0" fill="rgb(253,224,53)" rx="2" ry="2" />
+<text  x="740.26" y="799.5" >Envoy::Server::WorkerImpl::thread..</text>
+</g>
+<g >
+<title>irq_exit_rcu (15,677,555 samples, 0.31%)</title><rect x="594.5" y="469" width="3.7" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="597.47" y="479.5" ></text>
+</g>
+<g >
+<title>Envoy::Server::StatsHandler::prometheusRender (54,035,710 samples, 1.08%)</title><rect x="656.0" y="373" width="12.8" height="15.0" fill="rgb(249,204,48)" rx="2" ry="2" />
+<text  x="659.04" y="383.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (138,121,759 samples, 2.77%)</title><rect x="704.6" y="837" width="32.7" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="707.61" y="847.5" >[l..</text>
+</g>
+<g >
+<title>exit_to_user_mode_loop (48,992,531 samples, 0.98%)</title><rect x="506.7" y="613" width="11.6" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="509.68" y="623.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Network::ConnectionImpl::ConnectionImpl (42,716,194 samples, 0.86%)</title><rect x="945.5" y="709" width="10.1" height="15.0" fill="rgb(241,167,40)" rx="2" ry="2" />
+<text  x="948.53" y="719.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (860,363,162 samples, 17.24%)</title><rect x="986.6" y="821" width="203.4" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="989.61" y="831.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>[libc.so.6] (27,742,777 samples, 0.56%)</title><rect x="997.2" y="741" width="6.6" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1000.21" y="751.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (18,802,407 samples, 0.38%)</title><rect x="668.8" y="549" width="4.5" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="671.81" y="559.5" ></text>
+</g>
+<g >
+<title>native_sched_clock (64,711,418 samples, 1.30%)</title><rect x="570.8" y="341" width="15.3" height="15.0" fill="rgb(218,64,15)" rx="2" ry="2" />
+<text  x="573.82" y="351.5" ></text>
+</g>
+<g >
+<title>__fget_light (72,984,249 samples, 1.46%)</title><rect x="754.7" y="645" width="17.2" height="15.0" fill="rgb(233,132,31)" rx="2" ry="2" />
+<text  x="757.66" y="655.5" ></text>
+</g>
+<g >
+<title>std::__1::pair&lt;std::__1::__tree_iterator&lt;std::__1::__value_type&lt;Envoy::Stats::StatName, std::__1::vector&lt;Envoy::Stats::Counter const*, std::__1::allocator&lt;Envoy::Stats::Counter const*&gt; &gt; &gt;, std::__1::__tree_node&lt;std::__1::__value_type&lt;Envoy::Stats::StatName, std::__1::vector&lt;Envoy::Stats::Counter const*, std::__1::allocator&lt;Envoy::Stats::Counter const*&gt; &gt; &gt;, void*&gt;*, long&gt;, bool&gt; std::__1::__tree&lt;std::__1::__value_type&lt;Envoy::Stats::StatName, std::__1::vector&lt;Envoy::Stats::Counter const*, std::__1::allocator&lt;Envoy::Stats::Counter const*&gt; &gt; &gt;, std::__1::__map_value_compare&lt;Envoy::Stats::StatName, std::__1::__value_type&lt;Envoy::Stats::StatName, std::__1::vector&lt;Envoy::Stats::Counter const*, std::__1::allocator&lt;Envoy::Stats::Counter const*&gt; &gt; &gt;, Envoy::Stats::StatNameLessThan, false&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;Envoy::Stats::StatName, std::__1::vector&lt;Envoy::Stats::Counter const*, std::__1::allocator&lt;Envoy::Stats::Counter const*&gt; &gt; &gt; &gt; &gt;::__emplace_unique_key_args&lt;Envoy::Stats::StatName, std::__1::piecewise_construct_t const&amp;, std::__1::tuple&lt;Envoy::Stats::StatName&amp;&amp;&gt;, std::__1::tuple&lt;&gt; &gt; (54,035,710 samples, 1.08%)</title><rect x="656.0" y="341" width="12.8" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="659.04" y="351.5" ></text>
+</g>
+<g >
+<title>dequeue_task_fair (48,922,448 samples, 0.98%)</title><rect x="1123.1" y="565" width="11.6" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="1126.11" y="575.5" ></text>
+</g>
+<g >
+<title>ctx_sched_in (94,300,486 samples, 1.89%)</title><rect x="570.6" y="469" width="22.3" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="573.63" y="479.5" >c..</text>
+</g>
+<g >
+<title>__schedule (1,327,626 samples, 0.03%)</title><rect x="704.6" y="565" width="0.3" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="707.61" y="575.5" ></text>
+</g>
+<g >
+<title>ep_poll (528,529,557 samples, 10.59%)</title><rect x="1027.8" y="645" width="124.9" height="15.0" fill="rgb(238,151,36)" rx="2" ry="2" />
+<text  x="1030.79" y="655.5" >ep_poll</text>
+</g>
+<g >
+<title>ep_poll (524,132,718 samples, 10.50%)</title><rect x="771.9" y="645" width="123.9" height="15.0" fill="rgb(238,151,36)" rx="2" ry="2" />
+<text  x="774.91" y="655.5" >ep_poll</text>
+</g>
+<g >
+<title>x86_pmu_enable (7,325,196 samples, 0.15%)</title><rect x="452.3" y="533" width="1.8" height="15.0" fill="rgb(244,179,43)" rx="2" ry="2" />
+<text  x="455.33" y="543.5" ></text>
+</g>
+<g >
+<title>Envoy::Api::OsSysCallsImpl::send (42,716,194 samples, 0.86%)</title><rect x="945.5" y="613" width="10.1" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="948.53" y="623.5" ></text>
+</g>
+<g >
+<title>nf_hook_slow (15,677,555 samples, 0.31%)</title><rect x="594.5" y="277" width="3.7" height="15.0" fill="rgb(243,175,42)" rx="2" ry="2" />
+<text  x="597.47" y="287.5" ></text>
+</g>
+<g >
+<title>Envoy::Server::WorkerImpl::threadRoutine (860,363,162 samples, 17.24%)</title><rect x="986.6" y="789" width="203.4" height="15.0" fill="rgb(253,224,53)" rx="2" ry="2" />
+<text  x="989.61" y="799.5" >Envoy::Server::WorkerImpl:..</text>
+</g>
+<g >
+<title>event_base_loop (1,054,788,331 samples, 21.13%)</title><rect x="737.3" y="773" width="249.3" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="740.26" y="783.5" >event_base_loop</text>
+</g>
+<g >
+<title>Envoy::ThreadLocal::InstanceImpl::SlotImpl::wrapCallback (74,933,489 samples, 1.50%)</title><rect x="678.8" y="661" width="17.7" height="15.0" fill="rgb(253,221,52)" rx="2" ry="2" />
+<text  x="681.77" y="671.5" ></text>
+</g>
+<g >
+<title>Envoy::Network::RawBufferSocket::doWrite (42,716,194 samples, 0.86%)</title><rect x="945.5" y="661" width="10.1" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="948.53" y="671.5" ></text>
+</g>
+<g >
+<title>epoll_wait (657,151,208 samples, 13.17%)</title><rect x="326.7" y="741" width="155.3" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="329.67" y="751.5" >epoll_wait</text>
+</g>
+<g >
+<title>perf_event_sched_in (94,300,486 samples, 1.89%)</title><rect x="570.6" y="485" width="22.3" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="573.63" y="495.5" >p..</text>
+</g>
+<g >
+<title>sched_clock (449,898 samples, 0.01%)</title><rect x="861.9" y="485" width="0.1" height="15.0" fill="rgb(212,33,7)" rx="2" ry="2" />
+<text  x="864.90" y="495.5" ></text>
+</g>
+<g >
+<title>Envoy::Event::FileEventImpl::mergeInjectedEventsAndRunCb (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="741" width="7.1" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="1167.38" y="751.5" ></text>
+</g>
+<g >
+<title>event_del_nolock_ (25,689,869 samples, 0.51%)</title><rect x="638.8" y="709" width="6.1" height="15.0" fill="rgb(226,97,23)" rx="2" ry="2" />
+<text  x="641.81" y="719.5" ></text>
+</g>
+<g >
+<title>schedule_hrtimeout_range (528,529,557 samples, 10.59%)</title><rect x="1027.8" y="629" width="124.9" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="1030.79" y="639.5" >schedule_hrtime..</text>
+</g>
+<g >
+<title>http_parser_execute (54,035,710 samples, 1.08%)</title><rect x="656.0" y="533" width="12.8" height="15.0" fill="rgb(246,191,45)" rx="2" ry="2" />
+<text  x="659.04" y="543.5" ></text>
+</g>
+<g >
+<title>__perf_event_task_sched_out (60,664,698 samples, 1.22%)</title><rect x="605.3" y="501" width="14.4" height="15.0" fill="rgb(248,198,47)" rx="2" ry="2" />
+<text  x="608.33" y="511.5" ></text>
+</g>
+<g >
+<title>dequeue_task (145,998,106 samples, 2.92%)</title><rect x="781.3" y="565" width="34.5" height="15.0" fill="rgb(244,183,43)" rx="2" ry="2" />
+<text  x="784.28" y="575.5" >de..</text>
+</g>
+<g >
+<title>Envoy::Network::ConnectionImpl::onFileEvent (42,716,194 samples, 0.86%)</title><rect x="945.5" y="693" width="10.1" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="948.53" y="703.5" ></text>
+</g>
+<g >
+<title>event_process_active_single_queue (79,271,542 samples, 1.59%)</title><rect x="1152.7" y="757" width="18.8" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="1155.73" y="767.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Network::ConnectionImpl::ConnectionImpl (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="709" width="7.1" height="15.0" fill="rgb(241,167,40)" rx="2" ry="2" />
+<text  x="1167.38" y="719.5" ></text>
+</g>
+<g >
+<title>schedule_hrtimeout_range (288,485,147 samples, 5.78%)</title><rect x="385.9" y="629" width="68.2" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="388.86" y="639.5" >schedul..</text>
+</g>
+<g >
+<title>__x64_sys_epoll_wait (428,957,810 samples, 8.59%)</title><rect x="518.3" y="629" width="101.4" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="521.26" y="639.5" >__x64_sys_ep..</text>
+</g>
+<g >
+<title>__send (42,716,194 samples, 0.86%)</title><rect x="945.5" y="597" width="10.1" height="15.0" fill="rgb(234,134,32)" rx="2" ry="2" />
+<text  x="948.53" y="607.5" ></text>
+</g>
+<g >
+<title>visit_groups_merge.constprop.0.isra.0 (427,197 samples, 0.01%)</title><rect x="240.1" y="501" width="0.1" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="243.05" y="511.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ServerConnectionImpl::dispatch (54,035,710 samples, 1.08%)</title><rect x="656.0" y="581" width="12.8" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="659.04" y="591.5" ></text>
+</g>
+<g >
+<title>__x64_sys_sendto (42,716,194 samples, 0.86%)</title><rect x="945.5" y="533" width="10.1" height="15.0" fill="rgb(213,37,8)" rx="2" ry="2" />
+<text  x="948.53" y="543.5" ></text>
+</g>
+<g >
+<title>perf_event_groups_first (51,321,513 samples, 1.03%)</title><rect x="428.2" y="501" width="12.2" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="431.24" y="511.5" ></text>
+</g>
+<g >
+<title>Envoy::Thread::PosixThreadFactory::createPthread (815,228,360 samples, 16.33%)</title><rect x="295.0" y="805" width="192.7" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="298.01" y="815.5" >Envoy::Thread::PosixThrea..</text>
+</g>
+<g >
+<title>intel_pmu_enable_all (4,923,447 samples, 0.10%)</title><rect x="240.2" y="517" width="1.1" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="243.15" y="527.5" ></text>
+</g>
+<g >
+<title>perf_event_sched_in (143,555,821 samples, 2.88%)</title><rect x="38.6" y="533" width="33.9" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="41.57" y="543.5" >pe..</text>
+</g>
+<g >
+<title>conntrack_mt_v3 (15,677,555 samples, 0.31%)</title><rect x="594.5" y="213" width="3.7" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="597.47" y="223.5" ></text>
+</g>
+<g >
+<title>epoll_wait (876,559,570 samples, 17.56%)</title><rect x="81.5" y="741" width="207.2" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="84.49" y="751.5" >epoll_wait</text>
+</g>
+<g >
+<title>__lock_text_start (48,877,519 samples, 0.98%)</title><rect x="527.6" y="549" width="11.6" height="15.0" fill="rgb(232,125,30)" rx="2" ry="2" />
+<text  x="530.65" y="559.5" ></text>
+</g>
+<g >
+<title>Envoy::Event::FileEventImpl::mergeInjectedEventsAndRunCb (42,716,194 samples, 0.86%)</title><rect x="945.5" y="741" width="10.1" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="948.53" y="751.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::Event::DispatcherImpl::createFileEvent (54,035,710 samples, 1.08%)</title><rect x="656.0" y="677" width="12.8" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="659.04" y="687.5" ></text>
+</g>
+<g >
+<title>do_futex (267,143,878 samples, 5.35%)</title><rect x="10.0" y="645" width="63.2" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="13.00" y="655.5" >do_futex</text>
+</g>
+<g >
+<title>epoll_dispatch (558,935,280 samples, 11.20%)</title><rect x="506.7" y="709" width="132.1" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="509.68" y="719.5" >epoll_dispatch</text>
+</g>
+<g >
+<title>x86_pmu_disable (17,444,531 samples, 0.35%)</title><rect x="1148.6" y="517" width="4.1" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="1151.61" y="527.5" ></text>
+</g>
+<g >
+<title>cgroup_rstat_updated (26,876,075 samples, 0.54%)</title><rect x="557.7" y="437" width="6.3" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="560.68" y="447.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (815,228,360 samples, 16.33%)</title><rect x="295.0" y="821" width="192.7" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="298.01" y="831.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>__tcp_push_pending_frames (42,716,194 samples, 0.86%)</title><rect x="945.5" y="421" width="10.1" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="948.53" y="431.5" ></text>
+</g>
+<g >
+<title>x64_sys_call (668,890,712 samples, 13.40%)</title><rect x="754.7" y="693" width="158.1" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="757.66" y="703.5" >x64_sys_call</text>
+</g>
+<g >
+<title>wrk:worker_0 (1,054,788,331 samples, 21.13%)</title><rect x="737.3" y="853" width="249.3" height="15.0" fill="rgb(216,52,12)" rx="2" ry="2" />
+<text  x="740.26" y="863.5" >wrk:worker_0</text>
+</g>
+<g >
+<title>syscall_return_via_sysret (25,926,841 samples, 0.52%)</title><rect x="912.8" y="725" width="6.1" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="915.78" y="735.5" ></text>
+</g>
+<g >
+<title>process_backlog (42,716,194 samples, 0.86%)</title><rect x="945.5" y="165" width="10.1" height="15.0" fill="rgb(224,90,21)" rx="2" ry="2" />
+<text  x="948.53" y="175.5" ></text>
+</g>
+<g >
+<title>Envoy::Event::FileEventImpl::mergeInjectedEventsAndRunCb (54,035,710 samples, 1.08%)</title><rect x="656.0" y="693" width="12.8" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="659.04" y="703.5" ></text>
+</g>
+<g >
+<title>native_write_msr (17,444,531 samples, 0.35%)</title><rect x="1148.6" y="501" width="4.1" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="1151.61" y="511.5" ></text>
+</g>
+<g >
+<title>finish_task_switch.isra.0 (1,327,626 samples, 0.03%)</title><rect x="704.6" y="549" width="0.3" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="707.61" y="559.5" ></text>
+</g>
+<g >
+<title>timer_thread (138,121,759 samples, 2.77%)</title><rect x="704.6" y="789" width="32.7" height="15.0" fill="rgb(246,191,45)" rx="2" ry="2" />
+<text  x="707.61" y="799.5" >ti..</text>
+</g>
+<g >
+<title>epoll_dispatch (702,703,354 samples, 14.08%)</title><rect x="986.6" y="757" width="166.1" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="989.61" y="767.5" >epoll_dispatch</text>
+</g>
+<g >
+<title>timer_check (74,260,042 samples, 1.49%)</title><rect x="719.7" y="773" width="17.6" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="722.71" y="783.5" ></text>
+</g>
+<g >
+<title>event_sched_in (92,229,620 samples, 1.85%)</title><rect x="50.7" y="469" width="21.8" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="53.70" y="479.5" >e..</text>
+</g>
+<g >
+<title>pthread_mutex_lock (78,388,266 samples, 1.57%)</title><rect x="1171.5" y="757" width="18.5" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="1174.47" y="767.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::ConnectionManagerImpl::onData (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="645" width="7.1" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="1167.38" y="655.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ConnectionImpl::dispatchSlice (54,035,710 samples, 1.08%)</title><rect x="656.0" y="549" width="12.8" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="659.04" y="559.5" ></text>
+</g>
+<g >
+<title>perf_swevent_add (48,844,554 samples, 0.98%)</title><rect x="61.0" y="453" width="11.5" height="15.0" fill="rgb(207,11,2)" rx="2" ry="2" />
+<text  x="63.96" y="463.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (267,143,878 samples, 5.35%)</title><rect x="10.0" y="709" width="63.2" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="13.00" y="719.5" >entry_..</text>
+</g>
+<g >
+<title>Envoy::Event::DispatcherImpl::updateApproximateMonotonicTime (82,234,000 samples, 1.65%)</title><rect x="295.0" y="773" width="19.5" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="298.01" y="783.5" ></text>
+</g>
+<g >
+<title>x64_sys_call (476,290,574 samples, 9.54%)</title><rect x="369.4" y="693" width="112.6" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="372.42" y="703.5" >x64_sys_call</text>
+</g>
+<g >
+<title>intel_pmu_enable_all (7,946,888 samples, 0.16%)</title><rect x="1146.7" y="517" width="1.9" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="1149.73" y="527.5" ></text>
+</g>
+<g >
+<title>perf_event_groups_first (194,599,915 samples, 3.90%)</title><rect x="815.9" y="501" width="46.0" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="818.89" y="511.5" >perf..</text>
+</g>
+<g >
+<title>handle_softirqs (42,716,194 samples, 0.86%)</title><rect x="945.5" y="213" width="10.1" height="15.0" fill="rgb(238,156,37)" rx="2" ry="2" />
+<text  x="948.53" y="223.5" ></text>
+</g>
+<g >
+<title>__schedule (484,471,633 samples, 9.71%)</title><rect x="781.3" y="581" width="114.5" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="784.28" y="591.5" >__schedule</text>
+</g>
+<g >
+<title>__perf_event_task_sched_in (128,747,457 samples, 2.58%)</title><rect x="564.0" y="501" width="30.5" height="15.0" fill="rgb(231,121,29)" rx="2" ry="2" />
+<text  x="567.03" y="511.5" >__..</text>
+</g>
+<g >
+<title>ip_local_out (42,716,194 samples, 0.86%)</title><rect x="945.5" y="341" width="10.1" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="948.53" y="351.5" ></text>
+</g>
+<g >
+<title>update_curr (65,065,743 samples, 1.30%)</title><rect x="548.7" y="469" width="15.3" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="551.65" y="479.5" ></text>
+</g>
+<g >
+<title>main (917,447,442 samples, 18.38%)</title><rect x="487.7" y="789" width="216.9" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="490.73" y="799.5" >main</text>
+</g>
+<g >
+<title>[libc.so.6] (1,054,788,331 samples, 21.13%)</title><rect x="737.3" y="837" width="249.3" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="740.26" y="847.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>Envoy::Server::StatsHandler::prometheusStats (54,035,710 samples, 1.08%)</title><rect x="656.0" y="405" width="12.8" height="15.0" fill="rgb(222,80,19)" rx="2" ry="2" />
+<text  x="659.04" y="415.5" ></text>
+</g>
+<g >
+<title>absl::lts_20240722::synchronization_internal::FutexWaiter::Wait (267,143,878 samples, 5.35%)</title><rect x="10.0" y="741" width="63.2" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="13.00" y="751.5" >absl::..</text>
+</g>
+<g >
+<title>syscall_exit_to_user_mode (51,042,876 samples, 1.02%)</title><rect x="1015.7" y="693" width="12.1" height="15.0" fill="rgb(251,211,50)" rx="2" ry="2" />
+<text  x="1018.72" y="703.5" ></text>
+</g>
+<g >
+<title>timerqueue_add (68,059,219 samples, 1.36%)</title><rect x="397.3" y="549" width="16.1" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="400.30" y="559.5" ></text>
+</g>
+<g >
+<title>schedule_hrtimeout_range (786,122,295 samples, 15.75%)</title><rect x="93.1" y="629" width="185.8" height="15.0" fill="rgb(221,75,18)" rx="2" ry="2" />
+<text  x="96.10" y="639.5" >schedule_hrtimeout_range</text>
+</g>
+<g >
+<title>quiche::BalsaFrame::ProcessHeaders (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="565" width="7.1" height="15.0" fill="rgb(225,92,22)" rx="2" ry="2" />
+<text  x="1167.38" y="575.5" ></text>
+</g>
+<g >
+<title>__libc_start_main (917,447,442 samples, 18.38%)</title><rect x="487.7" y="821" width="216.9" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
+<text  x="490.73" y="831.5" >__libc_start_main</text>
+</g>
+<g >
+<title>intel_pmu_enable_all (2,737,767 samples, 0.05%)</title><rect x="72.5" y="517" width="0.7" height="15.0" fill="rgb(205,4,1)" rx="2" ry="2" />
+<text  x="75.50" y="527.5" ></text>
+</g>
+<g >
+<title>schedule (735,957,388 samples, 14.74%)</title><rect x="105.0" y="597" width="173.9" height="15.0" fill="rgb(254,229,54)" rx="2" ry="2" />
+<text  x="107.96" y="607.5" >schedule</text>
+</g>
+<g >
+<title>__schedule (340,383,771 samples, 6.82%)</title><rect x="539.2" y="533" width="80.5" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="542.20" y="543.5" >__schedule</text>
+</g>
+<g >
+<title>native_write_msr (7,946,888 samples, 0.16%)</title><rect x="1146.7" y="501" width="1.9" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="1149.73" y="511.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::Http1::ConnectionImpl::dispatchSlice (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="597" width="7.1" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="1167.38" y="607.5" ></text>
+</g>
+<g >
+<title>native_write_msr (6,194,410 samples, 0.12%)</title><rect x="593.0" y="453" width="1.5" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="596.00" y="463.5" ></text>
+</g>
+<g >
+<title>__fdget (21,284,127 samples, 0.43%)</title><rect x="81.5" y="645" width="5.0" height="15.0" fill="rgb(214,41,10)" rx="2" ry="2" />
+<text  x="84.49" y="655.5" ></text>
+</g>
+<g >
+<title>tick_program_event (68,447,712 samples, 1.37%)</title><rect x="1064.6" y="565" width="16.2" height="15.0" fill="rgb(241,166,39)" rx="2" ry="2" />
+<text  x="1067.57" y="575.5" ></text>
+</g>
+<g >
+<title>nf_hook_slow (42,716,194 samples, 0.86%)</title><rect x="945.5" y="85" width="10.1" height="15.0" fill="rgb(243,175,42)" rx="2" ry="2" />
+<text  x="948.53" y="95.5" ></text>
+</g>
+<g >
+<title>dequeue_entity (179,175,476 samples, 3.59%)</title><rect x="1080.8" y="533" width="42.3" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="1083.75" y="543.5" >deq..</text>
+</g>
+<g >
+<title>syscall (1,327,626 samples, 0.03%)</title><rect x="704.6" y="709" width="0.3" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="707.61" y="719.5" ></text>
+</g>
+<g >
+<title>epoll_dispatch (876,559,570 samples, 17.56%)</title><rect x="81.5" y="757" width="207.2" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="84.49" y="767.5" >epoll_dispatch</text>
+</g>
+<g >
+<title>futex_wait_queue_me (215,806,704 samples, 4.32%)</title><rect x="22.1" y="613" width="51.1" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="25.14" y="623.5" >futex..</text>
+</g>
+<g >
+<title>Envoy::Http::Http1::BalsaParser::validateAndProcessHeadersOrTrailersImpl (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="549" width="7.1" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="1167.38" y="559.5" ></text>
+</g>
+<g >
+<title>quiche::BalsaFrame::ProcessInput (29,976,251 samples, 0.60%)</title><rect x="1164.4" y="581" width="7.1" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="1167.38" y="591.5" ></text>
+</g>
+<g >
+<title>epoll_dispatch (817,601,882 samples, 16.38%)</title><rect x="737.3" y="757" width="193.2" height="15.0" fill="rgb(233,131,31)" rx="2" ry="2" />
+<text  x="740.26" y="767.5" >epoll_dispatch</text>
+</g>
+<g >
+<title>set_normalized_timespec64 (67,964,873 samples, 1.36%)</title><rect x="454.1" y="613" width="16.0" height="15.0" fill="rgb(206,8,2)" rx="2" ry="2" />
+<text  x="457.06" y="623.5" ></text>
+</g>
+<g >
+<title>std::__1::__function::__func&lt;Envoy::ThreadLocal::InstanceImpl::SlotImpl::set (49,295,291 samples, 0.99%)</title><rect x="1152.7" y="725" width="11.7" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="1155.73" y="735.5" ></text>
+</g>
+<g >
+<title>Envoy::Http::FilterManager::decodeHeaders (54,035,710 samples, 1.08%)</title><rect x="656.0" y="453" width="12.8" height="15.0" fill="rgb(253,224,53)" rx="2" ry="2" />
+<text  x="659.04" y="463.5" ></text>
+</g>
+<g >
+<title>__x64_sys_futex (1,327,626 samples, 0.03%)</title><rect x="704.6" y="645" width="0.3" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="707.61" y="655.5" ></text>
+</g>
+<g >
+<title>ctx_sched_in (55,759,356 samples, 1.12%)</title><rect x="227.0" y="517" width="13.2" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="229.97" y="527.5" ></text>
+</g>
+<g >
+<title>pthread_mutex_unlock (24,182,295 samples, 0.48%)</title><rect x="482.0" y="757" width="5.7" height="15.0" fill="rgb(231,120,28)" rx="2" ry="2" />
+<text  x="485.02" y="767.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (607,442,370 samples, 12.17%)</title><rect x="338.4" y="725" width="143.6" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="341.42" y="735.5" >entry_SYSCALL_64_a..</text>
+</g>
+<g >
+<title>__schedule (304,472,906 samples, 6.10%)</title><rect x="1080.8" y="581" width="71.9" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="1083.75" y="591.5" >__schedule</text>
+</g>
+<g >
+<title>__get_user_8 (48,992,531 samples, 0.98%)</title><rect x="506.7" y="565" width="11.6" height="15.0" fill="rgb(242,171,41)" rx="2" ry="2" />
+<text  x="509.68" y="575.5" ></text>
+</g>
+<g >
+<title>perf_event_context_sched_out (17,444,531 samples, 0.35%)</title><rect x="1148.6" y="533" width="4.1" height="15.0" fill="rgb(242,170,40)" rx="2" ry="2" />
+<text  x="1151.61" y="543.5" ></text>
+</g>
+<g >
+<title>ktime_get_ts64 (71,773,745 samples, 1.44%)</title><rect x="895.8" y="661" width="17.0" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="898.81" y="671.5" ></text>
+</g>
+<g >
+<title>__hrtimer_start_range_ns (39,661,085 samples, 0.79%)</title><rect x="771.9" y="581" width="9.4" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="774.91" y="591.5" ></text>
+</g>
+<g >
+<title>ASN1_UTCTIME_adj (47,186,333 samples, 0.95%)</title><rect x="644.9" y="533" width="11.1" height="15.0" fill="rgb(220,71,17)" rx="2" ry="2" />
+<text  x="647.89" y="543.5" ></text>
+</g>
+<g >
+<title>finish_task_switch.isra.0 (61,589,101 samples, 1.23%)</title><rect x="226.8" y="565" width="14.5" height="15.0" fill="rgb(246,189,45)" rx="2" ry="2" />
+<text  x="229.76" y="575.5" ></text>
+</g>
+<g >
+<title>ip_rcv (42,716,194 samples, 0.86%)</title><rect x="945.5" y="117" width="10.1" height="15.0" fill="rgb(209,22,5)" rx="2" ry="2" />
+<text  x="948.53" y="127.5" ></text>
+</g>
+<g >
+<title>pick_next_task (30,258,374 samples, 0.61%)</title><rect x="598.2" y="517" width="7.1" height="15.0" fill="rgb(206,4,1)" rx="2" ry="2" />
+<text  x="601.17" y="527.5" ></text>
+</g>
+<g >
+<title>envoy (917,447,442 samples, 18.38%)</title><rect x="487.7" y="853" width="216.9" height="15.0" fill="rgb(239,158,38)" rx="2" ry="2" />
+<text  x="490.73" y="863.5" >envoy</text>
+</g>
+<g >
+<title>__x64_sys_epoll_wait (668,890,712 samples, 13.40%)</title><rect x="754.7" y="677" width="158.1" height="15.0" fill="rgb(206,6,1)" rx="2" ry="2" />
+<text  x="757.66" y="687.5" >__x64_sys_epoll_wait</text>
+</g>
+</g>
+</svg>
