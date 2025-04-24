@@ -21,15 +21,15 @@ mkdir -p ${LOCAL_OUTPUT_DIR}
 
 echo "Saving current mTLS config first"
 kubectl -n "${NAMESPACE}"  get dr -oyaml > "${LOCAL_OUTPUT_DIR}/destination-rule.yaml" || true
-kubectl -n "${NAMESPACE}"  get policy -oyaml > "${LOCAL_OUTPUT_DIR}/authn-policy.yaml" || true
+kubectl -n "${NAMESPACE}"  get peerauthentication -oyaml > "${LOCAL_OUTPUT_DIR}/authn-policy.yaml" || true
 
 echo "Deleting Authn Policy and DestinationRule"
 kubectl -n "${NAMESPACE}" delete dr --all || true
-kubectl -n "${NAMESPACE}" delete policy --all || true
+kubectl -n "${NAMESPACE}" delete peerauthentication --all || true
 
 echo "Configure plaintext..."
 cat <<EOF | kubectl apply -f -
-apiVersion: security.istio.io/v1beta1
+apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
   name: default
@@ -41,7 +41,7 @@ EOF
 
 # Explicitly disable mTLS by DestinationRule to avoid potential auto mTLS effect.
 cat <<EOF | kubectl apply -f -
-apiVersion: networking.istio.io/v1alpha3
+apiVersion: networking.istio.io/v1
 kind: DestinationRule
 metadata:
   name: plaintext-dr-twopods
