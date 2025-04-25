@@ -41,7 +41,7 @@ def plotter(args):
     fig = plt.figure(figsize=(1138 / dpi, 871 / dpi), dpi=dpi)
     ax = fig.add_subplot(111)
     # default ylim doesn't show points
-    ax.set_ylim(0, 5.0)
+    # ax.set_ylim(0, 5.0)
     for key, val in telemetry_modes_y_data.items():
         plot_key = key
         match key:
@@ -50,8 +50,8 @@ def plotter(args):
             case "istio_with_stats_both":
                 plot_key = "istio_with_stats"
         plt.plot(args.query_list, val, marker='o', label=plot_key)
-        # for i, j in zip(args.query_list, val):
-            # ax.annotate(str(j), xy=(i, j))
+        for i, j in zip(args.query_list, val):
+            ax.annotate(str(j), xy=(i, j))
             # print("i=%x,j=%x,args.querylist=%x,val=%x,key=%x", i, j, args.query_list, val, key)
 
     plt.xlabel(get_x_label(args))

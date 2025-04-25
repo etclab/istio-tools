@@ -14,7 +14,7 @@ if [[ "$exp_type" == "latency" ]]; then
 fi
 
 # Output script file
-output_script="plot_${exp_type}.sh"
+output_script="plot_${exp_type}_${x_axis}.sh"
 echo "#!/bin/bash" > "$output_script"
 echo "# Auto-generated script to plot ${exp_type} graphs" >> "$output_script"
 echo "" >> "$output_script"
