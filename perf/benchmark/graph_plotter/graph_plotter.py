@@ -41,7 +41,7 @@ def plotter(args):
     fig = plt.figure(figsize=(1138 / dpi, 871 / dpi), dpi=dpi)
     ax = fig.add_subplot(111)
     # default ylim doesn't show points
-    # ax.set_ylim(0, 1.0)
+    ax.set_ylim(0, 5.0)
     for key, val in telemetry_modes_y_data.items():
         plot_key = key
         match key:
@@ -50,9 +50,9 @@ def plotter(args):
             case "istio_with_stats_both":
                 plot_key = "istio_with_stats"
         plt.plot(args.query_list, val, marker='o', label=plot_key)
-        for i, j in zip(args.query_list, val):
+        # for i, j in zip(args.query_list, val):
             # ax.annotate(str(j), xy=(i, j))
-            print("i=%x,j=%x,args.querylist=%x,val=%x,key=%x", i, j, args.query_list, val, key)
+            # print("i=%x,j=%x,args.querylist=%x,val=%x,key=%x", i, j, args.query_list, val, key)
 
     plt.xlabel(get_x_label(args))
     plt.ylabel(get_y_label(args))
@@ -102,9 +102,15 @@ def get_metric_name(args):
 
 def get_data_helper(df, query_list, query_str, telemetry_mode, metric_name):
     y_series_data = []
+    # print("query_list=", query_list)
+    # print("query_str=", query_str)
+    # print("metric_name=", metric_name) 
 
+    prev = -1
     for ql in query_list:
         data = df.query(query_str)
+        # print(f"queried for ql={ql}, telemetry_mode={telemetry_mode}")
+        # print(f"size of data={data.shape}")
         try:
             data[metric_name].head().empty
         except KeyError as e:
@@ -115,9 +121,32 @@ def get_data_helper(df, query_list, query_str, telemetry_mode, metric_name):
                     y_series_data.append(data[metric_name].head(1).values[0])
                 else:
                     y_series_data.append(data[metric_name].head(1).values[0] / data["ActualQPS"].head(1).values[0])
+                
+                prev = data["ActualQPS"].head(1).values[0]
             else:
-                y_series_data.append(None)
+                # when nocatchup+uniform is true and the service can't keep up
+                # the actual qps doesn't reach the target qps leading to empty data
+                if prev != -1 and "ActualQPS==@ql and " in query_str:
+                    
+                    new_query_str = query_str.replace("ActualQPS==@ql and ", "")
+                    new_df = df.query(new_query_str)
+                    sorted_df = new_df.sort_values("ActualQPS")
+                    new_data = sorted_df[sorted_df["ActualQPS"] > prev]
 
+                    # print(f"next_row={new_data}")
+                    if not new_data.head().empty:
+                        prev = new_data["ActualQPS"].head(1).values[0]
+                        # print(f"queried for ql={ql}, telemetry_mode={telemetry_mode}, query_str={query_str}")
+                        # print(f"latency={new_data[metric_name].head(1).values[0]}, qps={new_data['ActualQPS'].head(1).values[0]}")
+                        # print(f"y_series_data={new_data[metric_name].head(1).values[0] / new_data['ActualQPS'].head(1).values[0]} with actual qps")
+                        y_series_data.append(new_data[metric_name].head(1).values[0] / new_data["ActualQPS"].head(1).values[0])
+                        # print(f"y_series_data={new_data[metric_name].head(1).values[0] / ql} with ql")
+                        # y_series_data.append(new_data[metric_name].head(1).values[0] / ql)
+                    else: 
+                        y_series_data.append(None)
+                else:
+                    y_series_data.append(None)
+                
     return y_series_data
 
 
