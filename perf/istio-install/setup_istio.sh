@@ -80,9 +80,16 @@ function download_release() {
 
 function install_istioctl() {
   release=${1:?release folder}
+  # release=$(dirname $release)
+  # echo $release
   shift
+
+  USER=atosh502
+  HUB="${HUB:-docker.io/${USER}}"
+  USER_TAG="${TAG:-${USER}}"
+
   for i in ${IOPS//,/ }; do
-    "${release}/bin/istioctl" install --skip-confirmation -d "${release}/manifests" -f "${i}" "${@}"
+    "${release}/bin/istioctl" install --set hub=$HUB --set tag=$USER_TAG --set "values.global.imagePullPolicy=Always" --skip-confirmation -d "${release}/manifests" -f "${i}" "${@}"
   done
 }
 

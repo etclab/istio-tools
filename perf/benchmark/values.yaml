@@ -8,7 +8,7 @@ proxy:
   cpu: "1000m"
   memory: "512Mi"
   # this istio-proxy image includes the perf tool  
-  image: "atosh502/istio-proxy-perf"
+  image: "atosh502/proxyv2:atosh502"
 
 appresources1:
   requests:
