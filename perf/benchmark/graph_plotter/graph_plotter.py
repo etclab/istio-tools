@@ -51,8 +51,9 @@ def plotter(args):
                 plot_key = "istio_with_stats"
         plt.plot(args.query_list, val, marker='o', label=plot_key)
         for i, j in zip(args.query_list, val):
-            ax.annotate(str(j), xy=(i, j))
+            # ax.annotate(str(j), xy=(i, j))
             # print("i=%x,j=%x,args.querylist=%x,val=%x,key=%x", i, j, args.query_list, val, key)
+            pass
 
     plt.xlabel(get_x_label(args))
     plt.ylabel(get_y_label(args))
@@ -123,6 +124,7 @@ def get_data_helper(df, query_list, query_str, telemetry_mode, metric_name):
                     y_series_data.append(data[metric_name].head(1).values[0] / data["ActualQPS"].head(1).values[0])
                 
                 prev = data["ActualQPS"].head(1).values[0]
+                # print(f"prev={prev}")
             else:
                 # when nocatchup+uniform is true and the service can't keep up
                 # the actual qps doesn't reach the target qps leading to empty data
@@ -133,13 +135,16 @@ def get_data_helper(df, query_list, query_str, telemetry_mode, metric_name):
                     sorted_df = new_df.sort_values("ActualQPS")
                     new_data = sorted_df[sorted_df["ActualQPS"] > prev]
 
-                    # print(f"next_row={new_data}")
+                    # print(f"next_row={new_data[metric_name].head(1).values[0]}")
                     if not new_data.head().empty:
                         prev = new_data["ActualQPS"].head(1).values[0]
                         # print(f"queried for ql={ql}, telemetry_mode={telemetry_mode}, query_str={query_str}")
                         # print(f"latency={new_data[metric_name].head(1).values[0]}, qps={new_data['ActualQPS'].head(1).values[0]}")
                         # print(f"y_series_data={new_data[metric_name].head(1).values[0] / new_data['ActualQPS'].head(1).values[0]} with actual qps")
-                        y_series_data.append(new_data[metric_name].head(1).values[0] / new_data["ActualQPS"].head(1).values[0])
+                        if metric_name.startswith('cpu') or metric_name.startswith('mem'):
+                            y_series_data.append(new_data[metric_name].head(1).values[0])
+                        else:
+                            y_series_data.append(new_data[metric_name].head(1).values[0] / new_data["ActualQPS"].head(1).values[0])
                         # print(f"y_series_data={new_data[metric_name].head(1).values[0] / ql} with ql")
                         # y_series_data.append(new_data[metric_name].head(1).values[0] / ql)
                     else: 

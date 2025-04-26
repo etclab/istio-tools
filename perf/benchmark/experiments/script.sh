@@ -13,3 +13,5 @@ export DNS_DOMAIN=pc833.emulab.net
 python graph_plotter/graph_plotter.py --graph_type=latency-p90 --x_axis=qps --telemetry_modes=istio_mtls_120s_both --query_list=100,250,500,1000,2000,4000,8000,16000 --query_str=NumThreads==16 --csv_filepath=experiments/combined_cpu_mem.csv.dat --graph_title=experiments/plots/cpu_mem/cpu_mem-p90-120s.png
 
 DNS_DOMAIN=pc833.emulab.net RELEASE_URL=https://github.com/etclab/istio/releases/download/v0.2.1/istio-v0.2.1.tar.gz ./setup_istio.sh
+
+DNS_DOMAIN=pc833.emulab.net VERSION=1.24.0 ./setup_istio.sh
