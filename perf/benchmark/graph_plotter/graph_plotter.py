@@ -107,7 +107,6 @@ def get_data_helper(df, query_list, query_str, telemetry_mode, metric_name):
     # print("query_str=", query_str)
     # print("metric_name=", metric_name) 
 
-    prev = -1
     for ql in query_list:
         data = df.query(query_str)
         # print(f"queried for ql={ql}, telemetry_mode={telemetry_mode}")
@@ -123,21 +122,18 @@ def get_data_helper(df, query_list, query_str, telemetry_mode, metric_name):
                 else:
                     y_series_data.append(data[metric_name].head(1).values[0] / data["ActualQPS"].head(1).values[0])
                 
-                prev = data["ActualQPS"].head(1).values[0]
-                # print(f"prev={prev}")
             else:
                 # when nocatchup+uniform is true and the service can't keep up
                 # the actual qps doesn't reach the target qps leading to empty data
-                if prev != -1 and "ActualQPS==@ql and " in query_str:
+                if "ActualQPS==@ql and " in query_str:
                     
-                    new_query_str = query_str.replace("ActualQPS==@ql and ", "")
-                    new_df = df.query(new_query_str)
-                    sorted_df = new_df.sort_values("ActualQPS")
-                    new_data = sorted_df[sorted_df["ActualQPS"] > prev]
+                    new_query_str = query_str.replace("ActualQPS==@ql", f"Labels.str.contains('qps_{ql}')")
+                    new_data = df.query(new_query_str)
+                    # print(f"new_query_str={new_query_str}")
+                    # print(f"new_data = {new_data}")
 
-                    # print(f"next_row={new_data[metric_name].head(1).values[0]}")
                     if not new_data.head().empty:
-                        prev = new_data["ActualQPS"].head(1).values[0]
+                        # print(f"curr_data={new_data['ActualQPS'].head(1).values[0]}")
                         # print(f"queried for ql={ql}, telemetry_mode={telemetry_mode}, query_str={query_str}")
                         # print(f"latency={new_data[metric_name].head(1).values[0]}, qps={new_data['ActualQPS'].head(1).values[0]}")
                         # print(f"y_series_data={new_data[metric_name].head(1).values[0] / new_data['ActualQPS'].head(1).values[0]} with actual qps")
