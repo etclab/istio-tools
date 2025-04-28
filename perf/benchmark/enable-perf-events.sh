@@ -5,5 +5,8 @@ NODES=("$@")  # All command-line arguments
 
 for NODE in "${NODES[@]}"; do
   echo "Running commands on $NODE..."
-  ssh apoudel@${NODE}.emulab.net "sudo sysctl kernel.perf_event_paranoid=-1 && sudo sysctl kernel.kptr_restrict=0"
+  ssh \
+    -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/dev/null \
+    apoudel@${NODE}.emulab.net "sudo sysctl kernel.perf_event_paranoid=-1 && sudo sysctl kernel.kptr_restrict=0"
 done
