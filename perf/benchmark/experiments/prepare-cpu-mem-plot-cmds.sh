@@ -17,7 +17,7 @@ echo "" >> "$output_script"
 for graph_for in cpu-client cpu-server mem-client mem-server; do
     echo "#--- to plot: ${graph_for} --- " >> "$output_script"
     for duration in 120s 240s 480s; do
-        telemetry_modes="istio_mtls_${duration}_both,istio_plaintext_${duration}_both,no_istio_${duration}_no_istio"
+        telemetry_modes="istio_mtls_${duration}_both,istio_plaintext_${duration}_both,no_istio_${duration}_no_istio,mazu_${duration}_both"
         output_file="experiments/plots/${exp_type}/${exp_type}-${graph_for}-${duration}.png"
 
         cmd="python graph_plotter/graph_plotter.py --graph_type=${graph_for} --x_axis=${x_axis} \
@@ -43,7 +43,7 @@ echo "" >> "$output_script"
 for graph_for in cpu-client cpu-server mem-client mem-server; do
     echo "#--- to plot: ${graph_for} --- " >> "$output_script"
     for duration in 120s 240s 480s; do
-        telemetry_modes="istio_mtls_${duration}_both,istio_plaintext_${duration}_both,no_istio_${duration}_no_istio"
+        telemetry_modes="istio_mtls_${duration}_both,istio_plaintext_${duration}_both,no_istio_${duration}_no_istio,mazu_${duration}_both"
         output_file="experiments/plots/${exp_type}/${exp_type}-${graph_for}-${duration}.png"
 
         cmd="python graph_plotter/graph_plotter.py --graph_type=${graph_for} --x_axis=${x_axis} \

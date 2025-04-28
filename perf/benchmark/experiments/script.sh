@@ -15,3 +15,5 @@ python graph_plotter/graph_plotter.py --graph_type=latency-p90 --x_axis=qps --te
 DNS_DOMAIN=pc833.emulab.net RELEASE_URL=https://github.com/etclab/istio/releases/download/v0.2.1/istio-v0.2.1.tar.gz ./setup_istio.sh
 
 DNS_DOMAIN=pc833.emulab.net VERSION=1.24.0 ./setup_istio.sh
+
+python ./runner/fortio.py $FORTIO_CLIENT_URL --prometheus=$PROMETHEUS_URL --csv StartTime,ActualDuration,Labels,NumThreads,ActualQPS,p50,p90,p99,p999,cpu_mili_avg_istio_proxy_fortioclient,cpu_mili_avg_istio_proxy_fortioserver,cpu_mili_avg_istio_proxy_istio-ingressgateway,mem_Mi_avg_istio_proxy_fortioclient,mem_Mi_avg_istio_proxy_fortioserver,mem_Mi_avg_istio_proxy_istio-ingressgateway

@@ -24,7 +24,7 @@ for percentile in p90 p99; do
     echo "#--- ${percentile} --- " >> "$output_script"
     for duration in 120s 240s 480s; do
         graph_type="latency-${percentile}"
-        telemetry_modes="istio_mtls_${duration}_both,istio_plaintext_${duration}_both,no_istio_${duration}_no_istio"
+        telemetry_modes="istio_mtls_${duration}_both,istio_plaintext_${duration}_both,no_istio_${duration}_no_istio,mazu_${duration}_both"
         output_file="experiments/plots/${exp_type}/${exp_type}-${percentile}-${duration}.png"
 
         cmd="python graph_plotter/graph_plotter.py --graph_type=${graph_type} --x_axis=${x_axis} \

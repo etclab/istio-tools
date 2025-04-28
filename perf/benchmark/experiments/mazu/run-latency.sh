@@ -4,18 +4,17 @@
 pushd ../../ > /dev/null || { echo "Failed to change directory"; exit 1; }
 
 # Loop over durations
-# for duration in 120 240 480; do
-#     config_path="./experiments/mazu/latency_${duration}s.yaml"
+for duration in 120 240 480; do
+    config_path="./experiments/mazu/latency_${duration}s.yaml"
     
-#     if [[ -f $config_path ]]; then
-#         echo "▶ Running benchmark for duration=${duration}s"
-#         python runner/runner.py --config_file "$config_path"
-#     else
-#         echo "⚠️ Config file not found: $config_path"
-#     fi
-# done
+    if [[ -f $config_path ]]; then
+        echo "▶ Running benchmark for duration=${duration}s"
+        python runner/runner.py --config_file "$config_path"
+    else
+        echo "⚠️ Config file not found: $config_path"
+    fi
+done
 
-python runner/runner.py --config_file "./experiments/mazu/latency_120s.yaml"
 
 # Return to original directory
 popd > /dev/null || exit

@@ -1,5 +1,5 @@
 # set the appropriate dns domain
-DNS_DOMAIN=${DNS_DOMAIN:-pc813.emulab.net}
+DNS_DOMAIN=${DNS_DOMAIN:-pc739.emulab.net}
 
 # use the default v1.24.0 release of istio
 # but pull our custom docker hub images
