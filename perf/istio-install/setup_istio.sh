@@ -90,6 +90,7 @@ function install_istioctl() {
 
   for i in ${IOPS//,/ }; do
     "${release}/bin/istioctl" install --set hub=$HUB --set tag=$USER_TAG --set "values.global.imagePullPolicy=Always" --skip-confirmation -d "${release}/manifests" -f "${i}" "${@}"
+    # "${release}/bin/istioctl" install --skip-confirmation -d "${release}/manifests" -f "${i}" "${@}"
   done
 }
 

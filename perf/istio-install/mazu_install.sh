@@ -1,11 +1,11 @@
 # set the appropriate dns domain
-DNS_DOMAIN=${DNS_DOMAIN:-pc739.emulab.net}
+DNS_DOMAIN=${DNS_DOMAIN:-pc748.emulab.net}
+
+./install_etcd.sh
 
 # use the default v1.24.0 release of istio
 # but pull our custom docker hub images
 DNS_DOMAIN=$DNS_DOMAIN VERSION=1.24.0 ./setup_istio.sh
-
-./install_etcd.sh
 
 # apply the role and bindings to query the k8s TokenReview API from pods
 kubectl apply -f ./dev/token-review-role.yaml 
