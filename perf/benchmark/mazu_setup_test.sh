@@ -3,7 +3,7 @@ export NAMESPACE=twopods-istio
 export INTERCEPTION_MODE=REDIRECT
 export ISTIO_INJECT=true
 export LOAD_GEN_TYPE=fortio
-export DNS_DOMAIN=${DNS_DOMAIN:-pc785.emulab.net}
+export DNS_DOMAIN=${DNS_DOMAIN:-pc705.emulab.net}
 
 export FORTIO_CLIENT_URL=http://localhost:9076
 export PROMETHEUS_URL=http://localhost:9090

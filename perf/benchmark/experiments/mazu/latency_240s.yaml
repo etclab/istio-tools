@@ -13,7 +13,7 @@ conn:
 qps:
     - 1000
 
-duration: 240
+duration: 120
 size: 1024
 perf_record: true
 del_perf_record: false
@@ -23,9 +23,9 @@ run_bothsidecar: true
 run_serversidecar: false
 run_clientsidecar: false
 
-extra_labels: "240s_ka_true_unc_false"
+extra_labels: "240s_ka_true_unc_true"
 
-uniform: false
-nocatchup: false
+uniform: true
+nocatchup: true
 
 keepalive: true
