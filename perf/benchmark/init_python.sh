@@ -1,3 +1,4 @@
 pip install --upgrade pip && pip install pipenv
 ~/.local/bin/pipenv shell
-~/.local/bin/pipenv install
+pip install pipenv
+pipenv install

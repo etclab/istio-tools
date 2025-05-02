@@ -23,7 +23,9 @@ run_bothsidecar: true
 run_serversidecar: false
 run_clientsidecar: false
 
-extra_labels: "240s"
+extra_labels: "240s_ka_true_unc_false"
 
-uniform: true
-nocatchup: true
+uniform: false
+nocatchup: false
+
+keepalive: true

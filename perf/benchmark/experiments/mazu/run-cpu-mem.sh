@@ -4,7 +4,8 @@
 pushd ../../ > /dev/null || { echo "Failed to change directory"; exit 1; }
 
 # Loop over durations
-for duration in 120 240 480; do
+# for duration in 120 240 480; do
+for duration in 240; do
     config_path="./experiments/mazu/cpu_mem_${duration}s.yaml"
     
     if [[ -f $config_path ]]; then

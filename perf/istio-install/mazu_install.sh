@@ -1,5 +1,5 @@
 # set the appropriate dns domain
-DNS_DOMAIN=${DNS_DOMAIN:-pc748.emulab.net}
+DNS_DOMAIN=${DNS_DOMAIN:-pc785.emulab.net}
 
 ./install_etcd.sh
 
