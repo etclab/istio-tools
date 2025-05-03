@@ -13,7 +13,7 @@ conn:
 qps:
     - 1000
 
-duration: 120
+duration: 240
 size: 1024
 perf_record: true
 del_perf_record: false
