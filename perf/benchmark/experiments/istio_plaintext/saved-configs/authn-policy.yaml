@@ -5,13 +5,13 @@ items:
   metadata:
     annotations:
       kubectl.kubernetes.io/last-applied-configuration: |
-        {"apiVersion":"security.istio.io/v1","kind":"PeerAuthentication","metadata":{"annotations":{},"creationTimestamp":"2025-04-24T13:03:40Z","generation":1,"name":"default","namespace":"twopods-istio","resourceVersion":"16425","uid":"59ae1b43-2edb-41bb-a22f-d3fe48a9ac03"},"spec":{"mtls":{"mode":"PERMISSIVE"}}}
-    creationTimestamp: "2025-04-24T15:07:18Z"
+        {"apiVersion":"security.istio.io/v1","kind":"PeerAuthentication","metadata":{"annotations":{},"creationTimestamp":"2025-05-03T13:59:24Z","generation":1,"name":"default","namespace":"twopods-istio","resourceVersion":"6342","uid":"31de3685-fe7f-4347-8025-656a432b1952"},"spec":{"mtls":{"mode":"PERMISSIVE"}}}
+    creationTimestamp: "2025-05-04T01:08:02Z"
     generation: 1
     name: default
     namespace: twopods-istio
-    resourceVersion: "40600"
-    uid: 1731b998-0702-4f00-b024-a63f4f20d1a9
+    resourceVersion: "141480"
+    uid: 2ee5847c-de32-4880-b500-7627ace60618
   spec:
     mtls:
       mode: PERMISSIVE

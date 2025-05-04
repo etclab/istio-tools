@@ -352,7 +352,7 @@ spec:
   template:
     metadata:
       annotations:
-        # # this limits the number of worker threads in envoy
+        # this limits the number of worker threads in envoy
         # proxy.istio.io/config: '{"concurrency": 2}'
         {{- if $.Values.interceptionMode }}
         sidecar.istio.io/interceptionMode: {{ $.Values.interceptionMode }}

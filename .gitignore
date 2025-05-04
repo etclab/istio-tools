@@ -131,7 +131,7 @@ venv.bak/
 tools.code-workspace
 
 # perf/benchmark results 
-.csv
+# .csv
 .DS_Store
 **/palette.map
 **/flameoutput/

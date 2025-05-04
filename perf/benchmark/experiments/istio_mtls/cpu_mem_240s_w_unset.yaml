@@ -1,6 +1,6 @@
 # Data: latency
-# Config: Request goes through sidecars but in plaintext
-telemetry_mode: "istio_plaintext"
+# Config: Request goes through istio sidecar
+telemetry_mode: "istio_mtls"
 conn:
     - 16
 qps:
@@ -13,7 +13,7 @@ qps:
     - 8000
     - 16000
 
-duration: 120
+duration: 240
 size: 1024
 perf_record: true
 del_perf_record: false
@@ -23,7 +23,7 @@ run_bothsidecar: true
 run_serversidecar: false
 run_clientsidecar: false
 
-extra_labels: "120s"
+extra_labels: "240s_w_unset"
 
 uniform: true
 nocatchup: true
