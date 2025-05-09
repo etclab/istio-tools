@@ -1,0 +1,546 @@
+⚠️ Config file not found: ./experiments/mazu/cpu_mem_240s_ka_true_unc_true.yaml
+▶ Running benchmark for duration=240s
+-------------- Running in both mode --------------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 20000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_true, load_gen_type: fortio
+labels: 946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_true, perf_label_suffix: bothsidecars_perf
+------- in function bothsidecar -------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 20000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_true, sidecar_mode: both
+computed_uri: http://fortioserver:8080/echo
+kubectl --namespace twopods-istio exec fortioclient-8576b44b78-7f84p -c uncaptured -- fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 20000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_true_both http://fortioserver:8080/echo
+946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+run flame graph status: 1
+flame graph script output: + getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAME=fortioserver-7755455769-hsmwj
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAMESPACE=twopods-istio
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ PERF_DURATION=240
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ SAMPLE_FREQUENCY=99
++ getopts p:n:d:f: arg
++ POD_NAME=fortioserver-7755455769-hsmwj
++ POD_NAMESPACE=twopods-istio
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
++ PERF_DATA_FILENAME=946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+++ dirname /users/apoudel/istio-tools/perf/benchmark/runner/../flame/get_proxy_perf.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ echo 'Copy profiling script to proxy...'
+Copy profiling script to proxy...
++ kubectl cp /users/apoudel/istio-tools/perf/benchmark/flame/get_perfdata.sh fortioserver-7755455769-hsmwj:/etc/istio/proxy/get_perfdata.sh -n twopods-istio -c istio-proxy
++ echo 'Start profiling...'
+Start profiling...
++ kubectl exec fortioserver-7755455769-hsmwj -n twopods-istio -c istio-proxy -- /etc/istio/proxy/get_perfdata.sh 946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data 240 99
+++ dirname /etc/istio/proxy/get_perfdata.sh
++ WD=/etc/istio/proxy
+++ cd /etc/istio/proxy
+++ pwd
++ WD=/etc/istio/proxy
++ PERF_FILENAME=946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
+++ pgrep envoy
++ PID=28
+++ find /usr/lib -name 'linux-tools-*' -type d
+++ head -n 1
++ PERFDIR=/usr/lib/linux-tools-6.8.0-58
++ [[ -z /usr/lib/linux-tools-6.8.0-58 ]]
++ PERF=/usr/lib/linux-tools-6.8.0-58/perf
++ /usr/lib/linux-tools-6.8.0-58/perf record -o /etc/istio/proxy/946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data -F 99 -p 28 -g -- sleep 240
+[ perf record: Woken up 295 times to write data ]
+[ perf record: Captured and wrote 77.583 MB /etc/istio/proxy/946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data (139283 samples) ]
++ /usr/lib/linux-tools-6.8.0-58/perf script -i /etc/istio/proxy/946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data --demangle
++ echo 'Wrote /etc/istio/proxy/946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+Wrote /etc/istio/proxy/946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ mktemp -d -t proxy-perf-XXXXXXXXXX
++ TMP_DIR=/tmp/proxy-perf-8yJoVeBBuA
++ trap 'rm -rf "${TMP_DIR}"' EXIT
++ [[ 946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data = \p\e\r\f\.\d\a\t\a ]]
++ PERF_FILE_NAME=946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ PERF_FILE=/tmp/proxy-perf-8yJoVeBBuA/946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ kubectl cp fortioserver-7755455769-hsmwj:/etc/istio/proxy/946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf /tmp/proxy-perf-8yJoVeBBuA/946e2af8_qps_20000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf -n twopods-istio -c istio-proxy
+tar: Removing leading `/' from member names
+Dropping out copy after 0 retries
+error: unexpected EOF
++ rm -rf /tmp/proxy-perf-8yJoVeBBuA
+-------------- Running in both mode --------------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 32000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_true, load_gen_type: fortio
+labels: 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_true, perf_label_suffix: bothsidecars_perf
+------- in function bothsidecar -------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 32000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_true, sidecar_mode: both
+computed_uri: http://fortioserver:8080/echo
+kubectl --namespace twopods-istio exec fortioclient-8576b44b78-7f84p -c uncaptured -- fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 32000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_true_both http://fortioserver:8080/echo
+946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+run flame graph status: 0
+flame graph script output: + getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAME=fortioserver-7755455769-hsmwj
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAMESPACE=twopods-istio
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ PERF_DURATION=240
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ SAMPLE_FREQUENCY=99
++ getopts p:n:d:f: arg
++ POD_NAME=fortioserver-7755455769-hsmwj
++ POD_NAMESPACE=twopods-istio
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
++ PERF_DATA_FILENAME=946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+++ dirname /users/apoudel/istio-tools/perf/benchmark/runner/../flame/get_proxy_perf.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ echo 'Copy profiling script to proxy...'
+Copy profiling script to proxy...
++ kubectl cp /users/apoudel/istio-tools/perf/benchmark/flame/get_perfdata.sh fortioserver-7755455769-hsmwj:/etc/istio/proxy/get_perfdata.sh -n twopods-istio -c istio-proxy
++ echo 'Start profiling...'
+Start profiling...
++ kubectl exec fortioserver-7755455769-hsmwj -n twopods-istio -c istio-proxy -- /etc/istio/proxy/get_perfdata.sh 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data 240 99
+++ dirname /etc/istio/proxy/get_perfdata.sh
++ WD=/etc/istio/proxy
+++ cd /etc/istio/proxy
+++ pwd
++ WD=/etc/istio/proxy
++ PERF_FILENAME=946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
+++ pgrep envoy
++ PID=28
+++ find /usr/lib -name 'linux-tools-*' -type d
+++ head -n 1
++ PERFDIR=/usr/lib/linux-tools-6.8.0-58
++ [[ -z /usr/lib/linux-tools-6.8.0-58 ]]
++ PERF=/usr/lib/linux-tools-6.8.0-58/perf
++ /usr/lib/linux-tools-6.8.0-58/perf record -o /etc/istio/proxy/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data -F 99 -p 28 -g -- sleep 240
+[ perf record: Woken up 350 times to write data ]
+[ perf record: Captured and wrote 91.068 MB /etc/istio/proxy/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data (162770 samples) ]
++ /usr/lib/linux-tools-6.8.0-58/perf script -i /etc/istio/proxy/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data --demangle
+Wrote /etc/istio/proxy/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ echo 'Wrote /etc/istio/proxy/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+++ mktemp -d -t proxy-perf-XXXXXXXXXX
++ TMP_DIR=/tmp/proxy-perf-wzkUNSlPdI
++ trap 'rm -rf "${TMP_DIR}"' EXIT
++ [[ 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data = \p\e\r\f\.\d\a\t\a ]]
++ PERF_FILE_NAME=946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ PERF_FILE=/tmp/proxy-perf-wzkUNSlPdI/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ kubectl cp fortioserver-7755455769-hsmwj:/etc/istio/proxy/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf /tmp/proxy-perf-wzkUNSlPdI/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf -n twopods-istio -c istio-proxy
+tar: Removing leading `/' from member names
++ echo 'Generating svg file 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+Generating svg file 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh /tmp/proxy-perf-wzkUNSlPdI/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ dirname /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ FLAMEDIR=/users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph
++ command -v c++filt
++ cd /users/apoudel/istio-tools/perf/benchmark/flame
++ [[ ! -d /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph ]]
++ echo 'Cloning FlameGraph repo in /users/apoudel/istio-tools/perf/benchmark/flame'
+Cloning FlameGraph repo in /users/apoudel/istio-tools/perf/benchmark/flame
++ git clone https://github.com/brendangregg/FlameGraph
+Cloning into 'FlameGraph'...
++ FILE=/tmp/proxy-perf-wzkUNSlPdI/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ basename /tmp/proxy-perf-wzkUNSlPdI/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ FILENAME=946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ echo 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ cut -d . -f 1
++ BASE=946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf
++ SVGNAME=946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ COLLAPSE_SCRIPT=perf
++ mkdir -p /users/apoudel/istio-tools/perf/benchmark/flame/flameoutput
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/stackcollapse-perf.pl /tmp/proxy-perf-wzkUNSlPdI/946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ c++filt -n
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/flamegraph.pl --cp
++ echo 'Wrote CPU flame graph 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg'
+Wrote CPU flame graph 946e2af8_qps_32000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ rm -rf /tmp/proxy-perf-wzkUNSlPdI
+-------------- Running in both mode --------------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 50000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_true, load_gen_type: fortio
+labels: 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_true, perf_label_suffix: bothsidecars_perf
+------- in function bothsidecar -------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 50000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_true, sidecar_mode: both
+computed_uri: http://fortioserver:8080/echo
+kubectl --namespace twopods-istio exec fortioclient-8576b44b78-7f84p -c uncaptured -- fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 50000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_true_both http://fortioserver:8080/echo
+946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+run flame graph status: 0
+flame graph script output: + getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAME=fortioserver-7755455769-hsmwj
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAMESPACE=twopods-istio
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ PERF_DURATION=240
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ SAMPLE_FREQUENCY=99
++ getopts p:n:d:f: arg
++ POD_NAME=fortioserver-7755455769-hsmwj
++ POD_NAMESPACE=twopods-istio
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
++ PERF_DATA_FILENAME=946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+++ dirname /users/apoudel/istio-tools/perf/benchmark/runner/../flame/get_proxy_perf.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ echo 'Copy profiling script to proxy...'
+Copy profiling script to proxy...
++ kubectl cp /users/apoudel/istio-tools/perf/benchmark/flame/get_perfdata.sh fortioserver-7755455769-hsmwj:/etc/istio/proxy/get_perfdata.sh -n twopods-istio -c istio-proxy
++ echo 'Start profiling...'
+Start profiling...
++ kubectl exec fortioserver-7755455769-hsmwj -n twopods-istio -c istio-proxy -- /etc/istio/proxy/get_perfdata.sh 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data 240 99
+++ dirname /etc/istio/proxy/get_perfdata.sh
++ WD=/etc/istio/proxy
+++ cd /etc/istio/proxy
+++ pwd
++ WD=/etc/istio/proxy
++ PERF_FILENAME=946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
+++ pgrep envoy
++ PID=28
+++ find /usr/lib -name 'linux-tools-*' -type d
+++ head -n 1
++ PERFDIR=/usr/lib/linux-tools-6.8.0-58
++ [[ -z /usr/lib/linux-tools-6.8.0-58 ]]
++ PERF=/usr/lib/linux-tools-6.8.0-58/perf
++ /usr/lib/linux-tools-6.8.0-58/perf record -o /etc/istio/proxy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data -F 99 -p 28 -g -- sleep 240
+[ perf record: Woken up 306 times to write data ]
+[ perf record: Captured and wrote 79.746 MB /etc/istio/proxy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data (142942 samples) ]
++ /usr/lib/linux-tools-6.8.0-58/perf script -i /etc/istio/proxy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data --demangle
+Wrote /etc/istio/proxy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ echo 'Wrote /etc/istio/proxy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+++ mktemp -d -t proxy-perf-XXXXXXXXXX
++ TMP_DIR=/tmp/proxy-perf-1VjnCPcshy
++ trap 'rm -rf "${TMP_DIR}"' EXIT
++ [[ 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data = \p\e\r\f\.\d\a\t\a ]]
++ PERF_FILE_NAME=946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ PERF_FILE=/tmp/proxy-perf-1VjnCPcshy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ kubectl cp fortioserver-7755455769-hsmwj:/etc/istio/proxy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf /tmp/proxy-perf-1VjnCPcshy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf -n twopods-istio -c istio-proxy
+tar: Removing leading `/' from member names
++ echo 'Generating svg file 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+Generating svg file 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh /tmp/proxy-perf-1VjnCPcshy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ dirname /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ FLAMEDIR=/users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph
++ command -v c++filt
++ cd /users/apoudel/istio-tools/perf/benchmark/flame
++ [[ ! -d /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph ]]
++ FILE=/tmp/proxy-perf-1VjnCPcshy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ basename /tmp/proxy-perf-1VjnCPcshy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ FILENAME=946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ echo 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ cut -d . -f 1
++ BASE=946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf
++ SVGNAME=946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ COLLAPSE_SCRIPT=perf
++ mkdir -p /users/apoudel/istio-tools/perf/benchmark/flame/flameoutput
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/stackcollapse-perf.pl /tmp/proxy-perf-1VjnCPcshy/946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ c++filt -n
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/flamegraph.pl --cp
++ echo 'Wrote CPU flame graph 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg'
+Wrote CPU flame graph 946e2af8_qps_50000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ rm -rf /tmp/proxy-perf-1VjnCPcshy
+-------------- Running in both mode --------------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 60000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_true, load_gen_type: fortio
+labels: 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_true, perf_label_suffix: bothsidecars_perf
+------- in function bothsidecar -------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 60000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_true, sidecar_mode: both
+computed_uri: http://fortioserver:8080/echo
+kubectl --namespace twopods-istio exec fortioclient-8576b44b78-7f84p -c uncaptured -- fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 60000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_true_both http://fortioserver:8080/echo
+946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+run flame graph status: 0
+flame graph script output: + getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAME=fortioserver-7755455769-hsmwj
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAMESPACE=twopods-istio
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ PERF_DURATION=240
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ SAMPLE_FREQUENCY=99
++ getopts p:n:d:f: arg
++ POD_NAME=fortioserver-7755455769-hsmwj
++ POD_NAMESPACE=twopods-istio
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
++ PERF_DATA_FILENAME=946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+++ dirname /users/apoudel/istio-tools/perf/benchmark/runner/../flame/get_proxy_perf.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ echo 'Copy profiling script to proxy...'
+Copy profiling script to proxy...
++ kubectl cp /users/apoudel/istio-tools/perf/benchmark/flame/get_perfdata.sh fortioserver-7755455769-hsmwj:/etc/istio/proxy/get_perfdata.sh -n twopods-istio -c istio-proxy
++ echo 'Start profiling...'
+Start profiling...
++ kubectl exec fortioserver-7755455769-hsmwj -n twopods-istio -c istio-proxy -- /etc/istio/proxy/get_perfdata.sh 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data 240 99
+++ dirname /etc/istio/proxy/get_perfdata.sh
++ WD=/etc/istio/proxy
+++ cd /etc/istio/proxy
+++ pwd
++ WD=/etc/istio/proxy
++ PERF_FILENAME=946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
+++ pgrep envoy
++ PID=28
+++ find /usr/lib -name 'linux-tools-*' -type d
+++ head -n 1
++ PERFDIR=/usr/lib/linux-tools-6.8.0-58
++ [[ -z /usr/lib/linux-tools-6.8.0-58 ]]
++ PERF=/usr/lib/linux-tools-6.8.0-58/perf
++ /usr/lib/linux-tools-6.8.0-58/perf record -o /etc/istio/proxy/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data -F 99 -p 28 -g -- sleep 240
+[ perf record: Woken up 328 times to write data ]
+[ perf record: Captured and wrote 85.824 MB /etc/istio/proxy/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data (153522 samples) ]
++ /usr/lib/linux-tools-6.8.0-58/perf script -i /etc/istio/proxy/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data --demangle
+Wrote /etc/istio/proxy/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ echo 'Wrote /etc/istio/proxy/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+++ mktemp -d -t proxy-perf-XXXXXXXXXX
++ TMP_DIR=/tmp/proxy-perf-5GnkRU3X7g
++ trap 'rm -rf "${TMP_DIR}"' EXIT
++ [[ 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data = \p\e\r\f\.\d\a\t\a ]]
++ PERF_FILE_NAME=946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ PERF_FILE=/tmp/proxy-perf-5GnkRU3X7g/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ kubectl cp fortioserver-7755455769-hsmwj:/etc/istio/proxy/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf /tmp/proxy-perf-5GnkRU3X7g/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf -n twopods-istio -c istio-proxy
+tar: Removing leading `/' from member names
++ echo 'Generating svg file 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+Generating svg file 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh /tmp/proxy-perf-5GnkRU3X7g/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ dirname /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ FLAMEDIR=/users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph
++ command -v c++filt
++ cd /users/apoudel/istio-tools/perf/benchmark/flame
++ [[ ! -d /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph ]]
++ FILE=/tmp/proxy-perf-5GnkRU3X7g/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ basename /tmp/proxy-perf-5GnkRU3X7g/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ FILENAME=946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ echo 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ cut -d . -f 1
++ BASE=946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf
++ SVGNAME=946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ COLLAPSE_SCRIPT=perf
++ mkdir -p /users/apoudel/istio-tools/perf/benchmark/flame/flameoutput
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/stackcollapse-perf.pl /tmp/proxy-perf-5GnkRU3X7g/946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ c++filt -n
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/flamegraph.pl --cp
++ echo 'Wrote CPU flame graph 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg'
+Wrote CPU flame graph 946e2af8_qps_60000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ rm -rf /tmp/proxy-perf-5GnkRU3X7g
+-------------- Running in both mode --------------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 80000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_true, load_gen_type: fortio
+labels: 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_true, perf_label_suffix: bothsidecars_perf
+------- in function bothsidecar -------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 80000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_true, sidecar_mode: both
+computed_uri: http://fortioserver:8080/echo
+kubectl --namespace twopods-istio exec fortioclient-8576b44b78-7f84p -c uncaptured -- fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 80000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_true_both http://fortioserver:8080/echo
+946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+run flame graph status: 0
+flame graph script output: + getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAME=fortioserver-7755455769-hsmwj
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAMESPACE=twopods-istio
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ PERF_DURATION=240
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ SAMPLE_FREQUENCY=99
++ getopts p:n:d:f: arg
++ POD_NAME=fortioserver-7755455769-hsmwj
++ POD_NAMESPACE=twopods-istio
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
++ PERF_DATA_FILENAME=946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+++ dirname /users/apoudel/istio-tools/perf/benchmark/runner/../flame/get_proxy_perf.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ echo 'Copy profiling script to proxy...'
+Copy profiling script to proxy...
++ kubectl cp /users/apoudel/istio-tools/perf/benchmark/flame/get_perfdata.sh fortioserver-7755455769-hsmwj:/etc/istio/proxy/get_perfdata.sh -n twopods-istio -c istio-proxy
++ echo 'Start profiling...'
+Start profiling...
++ kubectl exec fortioserver-7755455769-hsmwj -n twopods-istio -c istio-proxy -- /etc/istio/proxy/get_perfdata.sh 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data 240 99
+++ dirname /etc/istio/proxy/get_perfdata.sh
++ WD=/etc/istio/proxy
+++ cd /etc/istio/proxy
+++ pwd
++ WD=/etc/istio/proxy
++ PERF_FILENAME=946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
+++ pgrep envoy
++ PID=28
+++ find /usr/lib -name 'linux-tools-*' -type d
+++ head -n 1
++ PERFDIR=/usr/lib/linux-tools-6.8.0-58
++ [[ -z /usr/lib/linux-tools-6.8.0-58 ]]
++ PERF=/usr/lib/linux-tools-6.8.0-58/perf
++ /usr/lib/linux-tools-6.8.0-58/perf record -o /etc/istio/proxy/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data -F 99 -p 28 -g -- sleep 240
+[ perf record: Woken up 344 times to write data ]
+[ perf record: Captured and wrote 89.478 MB /etc/istio/proxy/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data (160108 samples) ]
++ /usr/lib/linux-tools-6.8.0-58/perf script -i /etc/istio/proxy/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data --demangle
++ echo 'Wrote /etc/istio/proxy/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+Wrote /etc/istio/proxy/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ mktemp -d -t proxy-perf-XXXXXXXXXX
++ TMP_DIR=/tmp/proxy-perf-gR6yIJK8pU
++ trap 'rm -rf "${TMP_DIR}"' EXIT
++ [[ 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data = \p\e\r\f\.\d\a\t\a ]]
++ PERF_FILE_NAME=946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ PERF_FILE=/tmp/proxy-perf-gR6yIJK8pU/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ kubectl cp fortioserver-7755455769-hsmwj:/etc/istio/proxy/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf /tmp/proxy-perf-gR6yIJK8pU/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf -n twopods-istio -c istio-proxy
+tar: Removing leading `/' from member names
++ echo 'Generating svg file 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+Generating svg file 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh /tmp/proxy-perf-gR6yIJK8pU/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ dirname /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ FLAMEDIR=/users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph
++ command -v c++filt
++ cd /users/apoudel/istio-tools/perf/benchmark/flame
++ [[ ! -d /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph ]]
++ FILE=/tmp/proxy-perf-gR6yIJK8pU/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ basename /tmp/proxy-perf-gR6yIJK8pU/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ FILENAME=946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ echo 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ cut -d . -f 1
++ BASE=946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf
++ SVGNAME=946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ COLLAPSE_SCRIPT=perf
++ mkdir -p /users/apoudel/istio-tools/perf/benchmark/flame/flameoutput
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/stackcollapse-perf.pl /tmp/proxy-perf-gR6yIJK8pU/946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ c++filt -n
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/flamegraph.pl --cp
++ echo 'Wrote CPU flame graph 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg'
+Wrote CPU flame graph 946e2af8_qps_80000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ rm -rf /tmp/proxy-perf-gR6yIJK8pU
+-------------- Running in both mode --------------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 100000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_true, load_gen_type: fortio
+labels: 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_true, perf_label_suffix: bothsidecars_perf
+------- in function bothsidecar -------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 100000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_true, sidecar_mode: both
+computed_uri: http://fortioserver:8080/echo
+kubectl --namespace twopods-istio exec fortioclient-8576b44b78-7f84p -c uncaptured -- fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 100000 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_true_both http://fortioserver:8080/echo
+946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+run flame graph status: 0
+flame graph script output: + getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAME=fortioserver-7755455769-hsmwj
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ POD_NAMESPACE=twopods-istio
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ PERF_DURATION=240
++ getopts p:n:d:f: arg
++ case "${arg}" in
++ SAMPLE_FREQUENCY=99
++ getopts p:n:d:f: arg
++ POD_NAME=fortioserver-7755455769-hsmwj
++ POD_NAMESPACE=twopods-istio
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
++ PERF_DATA_FILENAME=946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
+++ dirname /users/apoudel/istio-tools/perf/benchmark/runner/../flame/get_proxy_perf.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/runner/../flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ echo 'Copy profiling script to proxy...'
+Copy profiling script to proxy...
++ kubectl cp /users/apoudel/istio-tools/perf/benchmark/flame/get_perfdata.sh fortioserver-7755455769-hsmwj:/etc/istio/proxy/get_perfdata.sh -n twopods-istio -c istio-proxy
++ echo 'Start profiling...'
+Start profiling...
++ kubectl exec fortioserver-7755455769-hsmwj -n twopods-istio -c istio-proxy -- /etc/istio/proxy/get_perfdata.sh 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data 240 99
+++ dirname /etc/istio/proxy/get_perfdata.sh
++ WD=/etc/istio/proxy
+++ cd /etc/istio/proxy
+++ pwd
++ WD=/etc/istio/proxy
++ PERF_FILENAME=946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data
++ PERF_DURATION=240
++ SAMPLE_FREQUENCY=99
+++ pgrep envoy
++ PID=28
+++ find /usr/lib -name 'linux-tools-*' -type d
+++ head -n 1
++ PERFDIR=/usr/lib/linux-tools-6.8.0-58
++ [[ -z /usr/lib/linux-tools-6.8.0-58 ]]
++ PERF=/usr/lib/linux-tools-6.8.0-58/perf
++ /usr/lib/linux-tools-6.8.0-58/perf record -o /etc/istio/proxy/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data -F 99 -p 28 -g -- sleep 240
+[ perf record: Woken up 324 times to write data ]
+[ perf record: Captured and wrote 85.063 MB /etc/istio/proxy/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data (152341 samples) ]
++ /usr/lib/linux-tools-6.8.0-58/perf script -i /etc/istio/proxy/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data --demangle
++ echo 'Wrote /etc/istio/proxy/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+Wrote /etc/istio/proxy/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ mktemp -d -t proxy-perf-XXXXXXXXXX
++ TMP_DIR=/tmp/proxy-perf-C7T6LlKAWG
++ trap 'rm -rf "${TMP_DIR}"' EXIT
++ [[ 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data = \p\e\r\f\.\d\a\t\a ]]
++ PERF_FILE_NAME=946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ PERF_FILE=/tmp/proxy-perf-C7T6LlKAWG/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ kubectl cp fortioserver-7755455769-hsmwj:/etc/istio/proxy/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf /tmp/proxy-perf-C7T6LlKAWG/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf -n twopods-istio -c istio-proxy
+tar: Removing leading `/' from member names
++ echo 'Generating svg file 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf'
+Generating svg file 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh /tmp/proxy-perf-C7T6LlKAWG/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ dirname /users/apoudel/istio-tools/perf/benchmark/flame/flame.sh
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
+++ cd /users/apoudel/istio-tools/perf/benchmark/flame
+++ pwd
++ WD=/users/apoudel/istio-tools/perf/benchmark/flame
++ FLAMEDIR=/users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph
++ command -v c++filt
++ cd /users/apoudel/istio-tools/perf/benchmark/flame
++ [[ ! -d /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph ]]
++ FILE=/tmp/proxy-perf-C7T6LlKAWG/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ basename /tmp/proxy-perf-C7T6LlKAWG/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ FILENAME=946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ echo 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
+++ cut -d . -f 1
++ BASE=946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf
++ SVGNAME=946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ COLLAPSE_SCRIPT=perf
++ mkdir -p /users/apoudel/istio-tools/perf/benchmark/flame/flameoutput
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/stackcollapse-perf.pl /tmp/proxy-perf-C7T6LlKAWG/946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.data.perf
++ c++filt -n
++ /users/apoudel/istio-tools/perf/benchmark/flame/FlameGraph/flamegraph.pl --cp
++ echo 'Wrote CPU flame graph 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg'
+Wrote CPU flame graph 946e2af8_qps_100000_c_16_1024_mazu_240s_ka_true_unc_truebothsidecars_perf.svg
++ rm -rf /tmp/proxy-perf-C7T6LlKAWG
