@@ -1,0 +1,9 @@
+▶ Running benchmark for duration=240s
+-------------- Running in both mode --------------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 100 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 2be0e2d8_qps_100_c_16_1024_mazu_240s_simple, load_gen_type: fortio
+labels: 2be0e2d8_qps_100_c_16_1024_mazu_240s_simple, perf_label_suffix: bothsidecars_perf
+------- in function bothsidecar -------
+load_gen_cmd: fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 100 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 2be0e2d8_qps_100_c_16_1024_mazu_240s_simple, sidecar_mode: both
+computed_uri: http://fortioserver:8080/echo
+kubectl --namespace twopods-istio exec fortioclient-8576b44b78-ph6tt -c uncaptured -- fortio load  -jitter=False -uniform=True -nocatchup=True -keepalive=True  -c 16 -qps 100 -t 240s -a -r 0.000001   -httpbufferkb=128 -labels 2be0e2d8_qps_100_c_16_1024_mazu_240s_simple_both http://fortioserver:8080/echo
+2be0e2d8_qps_100_c_16_1024_mazu_240s_simplebothsidecars_perf.data
