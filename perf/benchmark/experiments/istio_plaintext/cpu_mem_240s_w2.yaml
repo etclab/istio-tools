@@ -1,6 +1,6 @@
 # Data: latency
-# Config: Request goes through istio sidecar
-telemetry_mode: "istio_mtls"
+# Config: Request goes through sidecars but in plaintext
+telemetry_mode: "istio_plaintext"
 conn:
     - 4
 qps:

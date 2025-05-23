@@ -3,4 +3,5 @@ DURATIONS=(240)
 
 # proxy workers = 2 or unset
 # EXTRA_LABELS=("w2" "w_unset")
-EXTRA_LABELS=("unc_false")
+# EXTRA_LABELS=("unc_false")
+EXTRA_LABELS=("")

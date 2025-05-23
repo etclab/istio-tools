@@ -6,5 +6,4 @@ DURATIONS=(240)
 # EXTRA_LABELS=("nc_false") # nocatchup=false
 # EXTRA_LABELS=("unc_false") # uniform nocatchup both false
 # EXTRA_LABELS=("ka_true_unc_true") # uniform nocatchup both false
-EXTRA_LABELS=("simple") # simple cluster installed using build-system.sh
-
+EXTRA_LABELS=("")

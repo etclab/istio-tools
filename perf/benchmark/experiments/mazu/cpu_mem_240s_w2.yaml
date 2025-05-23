@@ -1,6 +1,6 @@
 # Data: latency
-# Config: Request goes through istio sidecar
-telemetry_mode: "istio_mtls"
+# Config: Mazu: mtls enabled, both sidecars
+telemetry_mode: "mazu"
 conn:
     - 4
 qps:
