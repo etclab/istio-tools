@@ -3,8 +3,9 @@ DNS_DOMAIN=${DNS_DOMAIN:-pc845.emulab.net}
 
 ./install_etcd.sh
 
-DOCKER_TAG=atosh502
-DOCKER_HUB="docker.io/${DOCKER_TAG}"
+DEFAULT_TAG="atosh502"
+DOCKER_TAG=${DOCKER_TAG:-atosh502}
+DOCKER_HUB="docker.io/atosh502"
 
 # use the default v1.24.0 release of istio
 # but pull our custom docker hub images
@@ -15,7 +16,8 @@ kubectl apply -f ./dev/token-review-role.yaml
 kubectl apply -f ./dev/token-review-binding.yaml 
 
 # custom proxy
-sed -i 's|^\s*image:.*|  image: "atosh502/proxyv2:atosh502"|' ../benchmark/values.yaml
+IMG_TAG="atosh502/proxyv2:${DOCKER_TAG}"
+sed -i "s|^\s*image:.*|  image: \"${IMG_TAG}\"|" ../benchmark/values.yaml
 
 # assuming replacing only the container images with the new ones work?
 # we don't need to use RELEASE_URL to download the istio release tarball
