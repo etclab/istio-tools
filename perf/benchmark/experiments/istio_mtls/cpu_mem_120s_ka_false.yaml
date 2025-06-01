@@ -1,0 +1,24 @@
+# Data: latency
+# Config: Request goes through istio sidecar
+telemetry_mode: "istio_mtls"
+conn:
+    - 64
+qps:
+    - 8000
+
+duration: 120
+size: 1024
+perf_record: true
+del_perf_record: false
+
+run_no_istio: false
+run_bothsidecar: true
+run_serversidecar: false
+run_clientsidecar: false
+
+extra_labels: "120s_ka_false"
+
+uniform: true
+nocatchup: true
+
+keepalive: false
