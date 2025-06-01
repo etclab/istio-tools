@@ -2,15 +2,18 @@
 # Config: Mazu: mtls enabled, both sidecars
 telemetry_mode: "mazu"
 conn:
-    - 2
-    - 4
-    - 8 
-    - 16
-    - 32
     - 64
 qps:
     - 1000
-
+    - 2000
+    - 4000
+    - 8000
+    - 16000
+    - 24000
+    - 32000
+    - 40000
+    - 48000
+    
 duration: 240
 size: 1024
 perf_record: true
@@ -21,7 +24,9 @@ run_bothsidecar: true
 run_serversidecar: false
 run_clientsidecar: false
 
-extra_labels: "240s_v2"
+extra_labels: "240s_st3"
 
 uniform: true
 nocatchup: true
+
+keepalive: true
