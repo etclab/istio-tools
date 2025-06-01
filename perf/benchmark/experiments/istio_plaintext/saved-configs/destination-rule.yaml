@@ -5,13 +5,13 @@ items:
   metadata:
     annotations:
       kubectl.kubernetes.io/last-applied-configuration: |
-        {"apiVersion":"networking.istio.io/v1","kind":"DestinationRule","metadata":{"annotations":{},"creationTimestamp":"2025-05-22T23:50:30Z","generation":1,"name":"fortioserver","namespace":"twopods-istio","resourceVersion":"267370","uid":"aa9e0029-5c42-4b18-8497-c4ea8f5f4fb5"},"spec":{"host":"fortioserver","trafficPolicy":{"portLevelSettings":[{"port":{"number":8080},"tls":{"mode":"ISTIO_MUTUAL"}},{"port":{"number":8077},"tls":{"mode":"DISABLE"}}]}}}
-    creationTimestamp: "2025-05-23T04:58:16Z"
+        {"apiVersion":"networking.istio.io/v1alpha3","kind":"DestinationRule","metadata":{"annotations":{},"name":"fortioserver","namespace":"twopods-istio"},"spec":{"host":"fortioserver","trafficPolicy":{"portLevelSettings":[{"port":{"number":8080},"tls":{"mode":"ISTIO_MUTUAL"}},{"port":{"number":8077},"tls":{"mode":"DISABLE"}}]}}}
+    creationTimestamp: "2025-05-27T16:11:37Z"
     generation: 1
     name: fortioserver
     namespace: twopods-istio
-    resourceVersion: "328825"
-    uid: aa77b908-bd71-4250-b9e3-2219c11642bb
+    resourceVersion: "1611353"
+    uid: 0d0e4ee4-38bb-4503-8d48-d4add893ecaa
   spec:
     host: fortioserver
     trafficPolicy:
