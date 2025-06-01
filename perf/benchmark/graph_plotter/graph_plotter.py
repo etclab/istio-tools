@@ -163,9 +163,9 @@ def get_y_label(args):
     if args.graph_type.startswith("latency"):
         return 'Latency in milliseconds'
     if args.graph_type.startswith("cpu"):
-        return 'istio-proxy average CPUs (milliseconds)'
+        return 'istio-proxy average CPUs (milliCPUs)'
     if args.graph_type.startswith("mem"):
-        return "istio-proxy average Memory (Mi)"
+        return "istio-proxy average Memory (MB)"
     return ""
 
 
