@@ -354,6 +354,9 @@ spec:
       annotations:
         # this limits the number of worker threads in envoy
         # proxy.istio.io/config: '{"concurrency": 2}'
+        # the below annotations mount the tpm public key
+        sidecar.istio.io/userVolume: '[{"name":"tpm-pubkey-volume","configMap":{"name":"tpm-pubkey"}}]'
+        sidecar.istio.io/userVolumeMount: '[{"name":"tpm-pubkey-volume","mountPath":"/etc/tpm-keys","readOnly":true}]'
         {{- if $.Values.interceptionMode }}
         sidecar.istio.io/interceptionMode: {{ $.Values.interceptionMode }}
         {{- end }}
