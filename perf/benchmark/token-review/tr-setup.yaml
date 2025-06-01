@@ -1,0 +1,125 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: tr-create-role
+rules:
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tr-bench-sa
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tr-create-binding
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: tr-bench-sa 
+  namespace: default
+roleRef:
+  kind: Role
+  name: tr-create-role # Name of the Role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fortio-tr-bench
+  namespace: default
+spec:
+  serviceAccountName: tr-bench-sa
+  restartPolicy: Never # Pod will run once and then complete; use 'OnFailure' for retries or 'Always' if you add a sleep for inspection
+  containers:
+  - name: fortio-tr-bench
+    image: golang:1.24-alpine
+    command: ["sh", "-c"]
+    args:
+    - |
+      # Bash script to prepare and run the Fortio benchmark
+
+      # --- Benchmark Parameters (customize these) ---
+      QPS="8000"         # Queries Per Second (e.g., "10", "100", "1000")
+      DURATION="120s"    # Test Duration (e.g., "30s", "5m", "1h")
+      CONCURRENCY="64"  # Number of concurrent connections/goroutines (e.g., "4", "10", "50")
+      LOG_LEVEL="info"  # Fortio log level (e.g., "debug", "info", "warning", "error")
+      # --- End of Benchmark Parameters ---
+
+      TOKEN_PATH="/var/run/secrets/kubernetes.io/serviceaccount/token"
+      # If your Kubernetes API server is not reachable via kubernetes.default.svc from the pod, adjust this URL.
+      API_SERVER_URL="https://kubernetes.default.svc/apis/authentication.k8s.io/v1/tokenreviews"
+      PAYLOAD_FILE="/tmp/token_review_payload.json"
+
+      go install fortio.org/fortio@latest
+      which fortio
+
+      echo "INFO: Starting TokenReview benchmark script..."
+      echo "INFO: QPS=${QPS}, Duration=${DURATION}, Concurrency=${CONCURRENCY}, Target URL=${API_SERVER_URL}"
+
+      echo "INFO: Waiting for service account token to be available at ${TOKEN_PATH}..."
+      timeout_seconds=60
+      elapsed_seconds=0
+      while [ ! -f "${TOKEN_PATH}" ] || [ ! -s "${TOKEN_PATH}" ]; do # Also check if token file is not empty
+        if [ "${elapsed_seconds}" -ge "${timeout_seconds}" ]; then
+          echo "ERROR: Timeout waiting for a non-empty service account token at ${TOKEN_PATH}. Exiting." >&2
+          exit 1
+        fi
+        sleep 1
+        elapsed_seconds=$((elapsed_seconds + 1))
+      done
+      echo "INFO: Service account token found and is not empty."
+
+      SA_TOKEN=$(cat "${TOKEN_PATH}")
+
+      if [ -z "${SA_TOKEN}" ]; then # Should be caught by the loop above, but as a safeguard
+        echo "ERROR: Service account token is empty after read. Exiting." >&2
+        exit 1
+      fi
+
+      echo "INFO: Creating JSON payload for TokenReview in ${PAYLOAD_FILE}..."
+      # Using printf for safer JSON generation
+      printf '{\n  "apiVersion": "authentication.k8s.io/v1",\n  "kind": "TokenReview",\n  "spec": {\n    "token": "%s"\n  }\n}' "${SA_TOKEN}" > "${PAYLOAD_FILE}"
+
+      if [ ! -s "${PAYLOAD_FILE}" ]; then # Check if payload file was created and is not empty
+        echo "ERROR: Failed to create or write to payload file ${PAYLOAD_FILE}. It is empty or does not exist. Exiting." >&2
+        echo "DEBUG: Listing /tmp directory..."
+        ls -la /tmp
+        echo "DEBUG: Disk space in /tmp..."
+        df -h /tmp
+        exit 1
+      fi
+      echo "INFO: Payload created successfully. Content (first 100 chars of token):"
+      # Avoid printing the full token to logs if it's sensitive for your environment,
+      # but it's useful for debugging.
+      printf '{\n  "apiVersion": "authentication.k8s.io/v1",\n  "kind": "TokenReview",\n  "spec": {\n    "token": "%.100s..."\n  }\n}' "${SA_TOKEN}"
+
+
+      echo "INFO: Starting Fortio load test..."
+      fortio load \
+        -cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+        -H "Authorization: Bearer ${SA_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -payload-file ${PAYLOAD_FILE} \
+        -keepalive=false \
+        -uniform=true \
+        -nocatchup=false \
+        -qps "${QPS}" \
+        -t "${DURATION}" \
+        -c "${CONCURRENCY}" \
+        -loglevel "${LOG_LEVEL}" \
+        "${API_SERVER_URL}"
+
+      FORTIO_EXIT_CODE=$?
+      if [ ${FORTIO_EXIT_CODE} -ne 0 ]; then
+        echo "ERROR: Fortio command failed with exit code ${FORTIO_EXIT_CODE}." >&2
+        # Fortio already prints its errors to stderr, which will be part of the pod logs.
+        exit ${FORTIO_EXIT_CODE}
+      fi
+
+      echo "INFO: Fortio test finished successfully. Pod will now terminate as per restartPolicy: Never."
