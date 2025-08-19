@@ -5,13 +5,13 @@ items:
   metadata:
     annotations:
       kubectl.kubernetes.io/last-applied-configuration: |
-        {"apiVersion":"networking.istio.io/v1","kind":"DestinationRule","metadata":{"annotations":{},"creationTimestamp":"2025-05-03T13:59:24Z","generation":1,"name":"fortioserver","namespace":"twopods-istio","resourceVersion":"6329","uid":"86e8475a-dd23-46cd-a59c-f8a02b9688ff"},"spec":{"host":"fortioserver","trafficPolicy":{"portLevelSettings":[{"port":{"number":8080},"tls":{"mode":"ISTIO_MUTUAL"}},{"port":{"number":8077},"tls":{"mode":"DISABLE"}}]}}}
-    creationTimestamp: "2025-05-04T01:08:02Z"
+        {"apiVersion":"networking.istio.io/v1","kind":"DestinationRule","metadata":{"annotations":{},"creationTimestamp":"2025-05-22T23:50:30Z","generation":1,"name":"fortioserver","namespace":"twopods-istio","resourceVersion":"267370","uid":"aa9e0029-5c42-4b18-8497-c4ea8f5f4fb5"},"spec":{"host":"fortioserver","trafficPolicy":{"portLevelSettings":[{"port":{"number":8080},"tls":{"mode":"ISTIO_MUTUAL"}},{"port":{"number":8077},"tls":{"mode":"DISABLE"}}]}}}
+    creationTimestamp: "2025-05-23T04:58:16Z"
     generation: 1
     name: fortioserver
     namespace: twopods-istio
-    resourceVersion: "141484"
-    uid: 72bdce8f-0129-4cdd-be80-19fd6f55633e
+    resourceVersion: "328825"
+    uid: aa77b908-bd71-4250-b9e3-2219c11642bb
   spec:
     host: fortioserver
     trafficPolicy:

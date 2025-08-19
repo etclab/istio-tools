@@ -2,16 +2,13 @@
 # Config: Request goes through istio sidecar
 telemetry_mode: "istio_mtls"
 conn:
-    - 16
+    - 4
 qps:
-    - 100
-    - 250
     - 500
+    - 750
     - 1000
-    - 2000
-    - 4000
-    - 8000
-    - 16000
+    - 1250
+    - 1500
 
 duration: 240
 size: 1024

@@ -8,5 +8,5 @@ for NODE in "${NODES[@]}"; do
   ssh \
     -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
-    apoudel@${NODE}.emulab.net "sudo sysctl kernel.perf_event_paranoid=-1 && sudo sysctl kernel.kptr_restrict=0"
+    apoudel@c220g1-${NODE}.wisc.cloudlab.us "sudo sysctl kernel.perf_event_paranoid=-1 && sudo sysctl kernel.kptr_restrict=0"
 done
